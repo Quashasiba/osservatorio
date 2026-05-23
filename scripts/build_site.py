@@ -98,34 +98,39 @@ def rangeselector(buttons: list) -> dict:
 
 
 def chart_bev(data: dict) -> str:
+    from datetime import timedelta
     obs = data["observations"]
-    periods = [datetime.strptime(o["period"], "%Y-%m") for o in obs]
+    # Centro le date sul 15 del mese: così le barre con width fisso restano dentro al mese
+    periods = [datetime.strptime(o["period"], "%Y-%m").replace(day=15) for o in obs]
     regs = [o["registrations"] for o in obs]
     shares = [o.get("market_share_pct") for o in obs]
+
+    BAR_WIDTH_MS = 2.4e9  # ~28 giorni: larghezza fissa stabile a tutti gli zoom
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
         x=periods, y=regs, name="Immatricolazioni",
         marker_color=COLOR_BEV,
-        xperiod="M1",            # ogni barra rappresenta 1 mese intero
-        xperiodalignment="middle",
+        width=BAR_WIDTH_MS,
+        cliponaxis=False,
         hovertemplate="<b>%{x|%b %Y}</b><br>%{y:,} immatricolazioni<extra></extra>",
     ))
     fig.add_trace(go.Scatter(
         x=periods, y=shares, name="Market share %",
         mode="lines+markers", yaxis="y2",
-        xperiod="M1", xperiodalignment="middle",
         line=dict(color=COLOR_BEV_LINE, width=2.5),
         marker=dict(size=7),
+        cliponaxis=False,
         hovertemplate="<b>%{x|%b %Y}</b><br>%{y}%% market share<extra></extra>",
     ))
     layout = common_layout()
     # Range iniziale: ultimi 12 mesi (l'utente può espandere coi bottoni)
     last_dt = periods[-1]
-    initial_start = datetime(last_dt.year - 1, last_dt.month, 1)
+    initial_start = datetime(last_dt.year - 1, last_dt.month, 15)
+    # Padding di 25 giorni: garantisce che le barre estreme (larghe ~14 gg/lato) siano interamente visibili
     layout["xaxis"] = dict(
         type="date", showgrid=False, linecolor=COLOR_GRID, automargin=True,
-        range=[initial_start, last_dt],
+        range=[initial_start - timedelta(days=25), last_dt + timedelta(days=25)],
         rangeselector=rangeselector([
             dict(count=6, label="6 mesi", step="month", stepmode="backward"),
             dict(count=12, label="1 anno", step="month", stepmode="backward"),
@@ -154,6 +159,7 @@ def chart_payments(data: dict) -> str:
         mode="lines+markers",
         line=dict(color=COLOR_PAY, width=3),
         marker=dict(size=9),
+        cliponaxis=False,
         hovertemplate="<b>%{x|%Y}</b><br>Cashless: %{y}%% dei consumi<extra></extra>",
     ))
     fig.add_trace(go.Scatter(
@@ -161,12 +167,18 @@ def chart_payments(data: dict) -> str:
         mode="lines+markers",
         line=dict(color=COLOR_PAY_LINE, width=3, dash="dot"),
         marker=dict(size=9),
+        cliponaxis=False,
         hovertemplate="<b>%{x|%Y}</b><br>Contante: %{y}%% dei consumi<extra></extra>",
     ))
     layout = common_layout()
+    # Range esplicito con 6 mesi di padding sui bordi (evita di tagliare i marker estremi)
     layout["xaxis"] = dict(
         type="date", showgrid=False, linecolor=COLOR_GRID, automargin=True,
         tickformat="%Y",
+        range=[
+            datetime(years_dt[0].year - 1, 7, 1),
+            datetime(years_dt[-1].year + 1, 7, 1),
+        ],
         rangeselector=rangeselector([
             dict(count=3, label="3 anni", step="year", stepmode="backward"),
             dict(count=5, label="5 anni", step="year", stepmode="backward"),

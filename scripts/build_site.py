@@ -36,18 +36,27 @@ COLOR_PAY_LINE = "#b8893a"   # accento oro per valore
 FONT_FAMILY = "Geist, system-ui, sans-serif"
 
 
-def common_layout(title: str) -> dict:
-    """Layout Plotly base condiviso da tutti i grafici."""
+def common_layout() -> dict:
+    """Layout Plotly base condiviso da tutti i grafici.
+
+    Il titolo del grafico NON è impostato qui: usiamo l'h2 della sezione HTML
+    come titolo (più leggibile, e su mobile non occupa spazio prezioso sopra
+    al chart). La legenda è sotto al grafico per lo stesso motivo.
+    """
     return dict(
-        title=dict(text=title, font=dict(family="Fraunces, serif", size=22, color=COLOR_FG)),
         paper_bgcolor=COLOR_BG,
         plot_bgcolor=COLOR_BG,
-        font=dict(family=FONT_FAMILY, color=COLOR_FG, size=13),
-        margin=dict(l=60, r=60, t=70, b=50),
+        font=dict(family=FONT_FAMILY, color=COLOR_FG, size=12),
+        margin=dict(l=48, r=48, t=24, b=72),
         hovermode="x unified",
-        xaxis=dict(showgrid=False, linecolor=COLOR_GRID),
-        yaxis=dict(gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        xaxis=dict(showgrid=False, linecolor=COLOR_GRID, automargin=True),
+        yaxis=dict(gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True),
+        legend=dict(
+            orientation="h",
+            yanchor="top", y=-0.18,
+            xanchor="center", x=0.5,
+            font=dict(size=12),
+        ),
     )
 
 
@@ -70,9 +79,9 @@ def chart_bev(data: dict) -> str:
         marker=dict(size=7),
         hovertemplate="<b>%{x}</b><br>%{y}% market share<extra></extra>",
     ))
-    layout = common_layout("Auto full electric immatricolate in Italia")
-    layout["yaxis"] = dict(title="Immatricolazioni", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID)
-    layout["yaxis2"] = dict(title="Market share %", overlaying="y", side="right", showgrid=False, ticksuffix="%")
+    layout = common_layout()
+    layout["yaxis"] = dict(title="", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True)
+    layout["yaxis2"] = dict(title="", overlaying="y", side="right", showgrid=False, ticksuffix="%", automargin=True)
     fig.update_layout(**layout)
 
     return pio.to_html(fig, include_plotlyjs="cdn", full_html=False, div_id="chart-bev",
@@ -98,9 +107,9 @@ def chart_payments(data: dict) -> str:
         marker=dict(size=7),
         hovertemplate="<b>%{x}</b><br>€ %{y:,} mld<extra></extra>",
     ))
-    layout = common_layout("Pagamenti elettronici al dettaglio — Italia")
-    layout["yaxis"] = dict(title="Operazioni (miliardi)", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID)
-    layout["yaxis2"] = dict(title="Valore (mld €)", overlaying="y", side="right", showgrid=False)
+    layout = common_layout()
+    layout["yaxis"] = dict(title="", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True)
+    layout["yaxis2"] = dict(title="", overlaying="y", side="right", showgrid=False, automargin=True)
     fig.update_layout(**layout)
 
     return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-payments",
@@ -152,7 +161,14 @@ TEMPLATE = """<!doctype html>
     footer { margin-top: 96px; padding-top: 28px; border-top: 1px solid var(--rule); font-size: 12px; color: var(--fg-soft); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
 
     @media (max-width: 640px) {
-      .wrap { padding: 40px 20px 64px; }
+      .wrap { padding: 32px 16px 56px; }
+      header { margin-bottom: 40px; }
+      h1 { font-size: 36px; }
+      .lede { font-size: 16px; }
+      section.card { margin-bottom: 56px; }
+      section.card h2 { font-size: 22px; }
+      section.card .sub { font-size: 13px; }
+      .chart-wrap { margin: 0 -16px; padding: 0; } /* il grafico va edge-to-edge su mobile */
     }
   </style>
 </head>
@@ -170,7 +186,7 @@ TEMPLATE = """<!doctype html>
 
     <section class="card">
       <h2>1 · Auto full electric immatricolate</h2>
-      <p class="sub">Numero di nuove BEV (battery electric vehicle) registrate ogni mese in Italia, con quota di mercato.</p>
+      <p class="sub">Nuove BEV registrate ogni mese in Italia. <strong>Barre verdi</strong>: numero immatricolazioni. <strong>Linea ruggine</strong>: quota di mercato.</p>
       <div class="chart-wrap">
         <!-- CHART:bev -->
         __CHART_BEV__
@@ -181,7 +197,7 @@ TEMPLATE = """<!doctype html>
 
     <section class="card">
       <h2>2 · Pagamenti elettronici al dettaglio</h2>
-      <p class="sub">Operazioni e controvalore complessivo dei pagamenti non in contante, dato trimestrale.</p>
+      <p class="sub">Pagamenti non in contante, dato trimestrale. <strong>Barre blu</strong>: miliardi di operazioni. <strong>Linea oro</strong>: valore complessivo in miliardi di euro.</p>
       <div class="chart-wrap">
         <!-- CHART:payments -->
         __CHART_PAYMENTS__

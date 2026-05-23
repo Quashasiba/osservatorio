@@ -461,18 +461,7 @@ TEMPLATE = """<!doctype html>
     </section>
 
     <section class="card">
-      <h2>2 · Cashless vs contanti</h2>
-      <p class="sub">Quota dei consumi delle famiglie italiane regolata con strumenti elettronici (<strong>blu pieno</strong>) o in contante (<strong>oro tratteggiato</strong>). Il sorpasso è avvenuto nel 2024.</p>
-      <div class="chart-wrap">
-        <!-- CHART:payments -->
-        __CHART_PAYMENTS__
-        <!-- /CHART:payments -->
-      </div>
-      <p class="source">Fonte: <a href="https://www.osservatori.net/innovative-payments/" target="_blank" rel="noopener">Osservatorio Innovative Payments — Politecnico di Milano</a> · aggiornamento annuale (marzo)</p>
-    </section>
-
-    <section class="card">
-      <h2>3 · Operatori telefonici mobili</h2>
+      <h2>2 · Operatori telefonici mobili</h2>
       <p class="sub">Classifica per quota di mercato sulle SIM <strong>Human</strong> (escluse M2M/IoT) nell'ultimo trimestre disponibile, con variazione rispetto a 12 mesi prima.</p>
       <div class="chart-wrap">
         <!-- CHART:mobile -->
@@ -483,18 +472,7 @@ TEMPLATE = """<!doctype html>
     </section>
 
     <section class="card">
-      <h2>4 · Banche e fintech</h2>
-      <p class="sub">Numero clienti delle principali banche italiane nell'ultimo anno disponibile, con la <strong>variazione percentuale anno su anno</strong>. Spicca la crescita di <strong>Revolut</strong> contro la sostanziale stabilità delle tradizionali.</p>
-      <div class="chart-wrap">
-        <!-- CHART:banks -->
-        __CHART_BANKS__
-        <!-- /CHART:banks -->
-      </div>
-      <p class="source">Fonte: bilanci annuali e comunicati ufficiali · aggiornamento annuale (primavera, manuale)</p>
-    </section>
-
-    <section class="card">
-      <h2>5 · Desertificazione bancaria</h2>
+      <h2>3 · Desertificazione bancaria</h2>
       <p class="sub">Numero totale di sportelli bancari aperti in Italia, a fine anno. La rete fisica si è quasi <strong>dimezzata in 15 anni</strong>: oltre 11mila sportelli chiusi dal picco del 2012, accelerazione durante la pandemia.</p>
       <div class="chart-wrap">
         <!-- CHART:desertification -->
@@ -502,6 +480,28 @@ TEMPLATE = """<!doctype html>
         <!-- /CHART:desertification -->
       </div>
       <p class="source">Fonte: <a href="https://www.firstcisl.it/tag/osservatorio-desertificazione-bancaria/" target="_blank" rel="noopener">First CISL — Osservatorio sulla Desertificazione Bancaria</a> (su dati Banca d'Italia / ISTAT) · aggiornamento annuale (fine gennaio)</p>
+    </section>
+
+    <section class="card">
+      <h2>4 · Cashless vs contanti</h2>
+      <p class="sub">Quota dei consumi delle famiglie italiane regolata con strumenti elettronici (<strong>blu pieno</strong>) o in contante (<strong>oro tratteggiato</strong>). Il sorpasso è avvenuto nel 2024.</p>
+      <div class="chart-wrap">
+        <!-- CHART:payments -->
+        __CHART_PAYMENTS__
+        <!-- /CHART:payments -->
+      </div>
+      <p class="source">Fonte: <a href="https://www.osservatori.net/innovative-payments/" target="_blank" rel="noopener">Osservatorio Innovative Payments — Politecnico di Milano</a> · aggiornamento annuale (marzo)</p>
+    </section>
+
+    <section class="card">
+      <h2>5 · Banche e fintech</h2>
+      <p class="sub">Numero clienti delle principali banche italiane nell'ultimo anno disponibile, con la <strong>variazione percentuale anno su anno</strong>. Spicca la crescita di <strong>Revolut</strong> contro la sostanziale stabilità delle tradizionali.</p>
+      <div class="chart-wrap">
+        <!-- CHART:banks -->
+        __CHART_BANKS__
+        <!-- /CHART:banks -->
+      </div>
+      <p class="source">Fonte: bilanci annuali e comunicati ufficiali · aggiornamento annuale (primavera, manuale)</p>
     </section>
 
     <footer>

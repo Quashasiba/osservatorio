@@ -253,6 +253,49 @@ def chart_mobile(data: dict) -> str:
                        config=chart_config(static=True))
 
 
+def chart_banks(data: dict) -> str:
+    """Line chart multi-trace: numero clienti (in milioni) per banca, anno per anno.
+
+    Ultimi 10 anni di dati. Fintech vs banche tradizionali: traccia evidente
+    di Revolut (fintech) che cresce in modo esponenziale mentre le tradizionali
+    sono stabili.
+    """
+    obs = data["observations"][-10:]
+    banks = data["banks"]
+    years_dt = [datetime(o["year"], 1, 1) for o in obs]
+
+    fig = go.Figure()
+    for bank in banks:
+        name = bank["name"]
+        color = bank["color"]
+        is_fintech = bank.get("type") == "fintech"
+        values = [o.get(name) for o in obs]
+        fig.add_trace(go.Scatter(
+            x=years_dt, y=values, name=name,
+            mode="lines+markers",
+            line=dict(color=color, width=3 if is_fintech else 2),
+            marker=dict(size=8 if is_fintech else 6),
+            cliponaxis=False,
+            hovertemplate=f"<b>{name}</b><br>%{{x|%Y}}: %{{y}}M clienti<extra></extra>",
+        ))
+    layout = common_layout()
+    layout["margin"] = dict(l=60, r=60, t=30, b=50)
+    first_year = years_dt[0].year
+    last_year = years_dt[-1].year
+    layout["xaxis"] = dict(
+        type="date", showgrid=False, linecolor=COLOR_GRID,
+        tickformat="%Y",
+        range=[datetime(first_year - 1, 7, 1), datetime(last_year, 12, 31)],
+    )
+    layout["yaxis"] = dict(
+        gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True,
+        ticksuffix="M", rangemode="tozero",
+    )
+    fig.update_layout(**layout)
+    return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-banks",
+                       config=chart_config(static=False))
+
+
 TEMPLATE = """<!doctype html>
 <html lang="it">
 <head>
@@ -354,6 +397,17 @@ TEMPLATE = """<!doctype html>
       <p class="source">Fonte: <a href="https://www.agcom.it/comunicazione/comunicati-stampa" target="_blank" rel="noopener">AGCOM — Osservatorio sulle Comunicazioni</a> · aggiornamento trimestrale</p>
     </section>
 
+    <section class="card">
+      <h2>4 · Banche e fintech — clienti in Italia</h2>
+      <p class="sub">Numero di clienti per le principali banche italiane. Tradizionali a linea sottile, fintech (<strong>Revolut</strong>, <strong>HYPE</strong>) a linea spessa. Mostra la crescita verticale delle fintech mentre le tradizionali sono stabili.</p>
+      <div class="chart-wrap">
+        <!-- CHART:banks -->
+        __CHART_BANKS__
+        <!-- /CHART:banks -->
+      </div>
+      <p class="source">Fonte: bilanci annuali e comunicati ufficiali · aggiornamento annuale (primavera, manuale)</p>
+    </section>
+
     <footer>
       <span>Generato automaticamente · build __BUILD_DATE__</span>
       <span>Codice e dati: <a href="#" style="color:inherit">repo GitHub</a></span>
@@ -371,21 +425,26 @@ def main() -> int:
         pay_data = json.load(f)
     with open(DATA_DIR / "operatori_mobile.json", "r", encoding="utf-8") as f:
         mob_data = json.load(f)
+    with open(DATA_DIR / "banche_italia.json", "r", encoding="utf-8") as f:
+        banks_data = json.load(f)
 
     bev_html = chart_bev(bev_data)
     pay_html = chart_payments(pay_data)
     mob_html = chart_mobile(mob_data)
+    banks_html = chart_banks(banks_data)
 
     updated_at = max(
         bev_data.get("updated_at", ""),
         pay_data.get("updated_at", ""),
         mob_data.get("updated_at", ""),
+        banks_data.get("updated_at", ""),
     )
 
     out = (TEMPLATE
            .replace("__CHART_BEV__", bev_html)
            .replace("__CHART_PAYMENTS__", pay_html)
            .replace("__CHART_MOBILE__", mob_html)
+           .replace("__CHART_BANKS__", banks_html)
            .replace("__UPDATED_AT__", updated_at or "—")
            .replace("__BUILD_DATE__", date.today().isoformat()))
 

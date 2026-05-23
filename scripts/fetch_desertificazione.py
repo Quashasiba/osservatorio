@@ -171,26 +171,37 @@ def main() -> int:
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    # Controlla se l'anno è già presente
+    # Snapshot dei dati prima della modifica per capire se cambiano davvero
     existing_years = {o["year"] for o in data["observations"]}
     year = extracted["year"]
+    data_changed = False
 
     if year in existing_years:
-        # Aggiorna l'osservazione esistente (caso: i numeri sono stati rivisti)
+        # Aggiorna l'osservazione esistente solo se qualche valore cambia
         for o in data["observations"]:
             if o["year"] == year:
                 for k, v in extracted.items():
-                    if k != "year":
+                    if k != "year" and o.get(k) != v:
                         o[k] = v
-                o["estimated"] = False
+                        data_changed = True
+                if o.get("estimated") is True:
+                    o["estimated"] = False
+                    data_changed = True
                 break
-        print(f"Aggiornata osservazione esistente per {year}")
+        if data_changed:
+            print(f"Aggiornata osservazione esistente per {year}")
+        else:
+            print(f"Osservazione {year} già aggiornata, nessuna modifica")
     else:
         # Nuovo anno
         new_obs = {**extracted, "estimated": False}
         data["observations"].append(new_obs)
         data["observations"].sort(key=lambda o: o["year"])
+        data_changed = True
         print(f"Aggiunta nuova osservazione per {year}")
+
+    if not data_changed:
+        return 0  # nessuna modifica, non tocchiamo il JSON né updated_at
 
     data["updated_at"] = date.today().isoformat()
     with open(DATA_FILE, "w", encoding="utf-8") as f:

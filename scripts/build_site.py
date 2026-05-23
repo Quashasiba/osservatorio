@@ -449,60 +449,7 @@ TEMPLATE = """<!doctype html>
       </div>
     </header>
 
-    <section class="card">
-      <h2>1 · Auto full electric immatricolate</h2>
-      <p class="sub">Nuove BEV registrate ogni mese in Italia. <strong>Barre verdi</strong>: numero immatricolazioni. <strong>Linea ruggine</strong>: quota di mercato.</p>
-      <div class="chart-wrap">
-        <!-- CHART:bev -->
-        __CHART_BEV__
-        <!-- /CHART:bev -->
-      </div>
-      <p class="source">Fonte: <a href="https://unrae.it/notizie" target="_blank" rel="noopener">UNRAE</a> · aggiornamento mensile</p>
-    </section>
-
-    <section class="card">
-      <h2>2 · Operatori telefonici mobili</h2>
-      <p class="sub">Classifica per quota di mercato sulle SIM <strong>Human</strong> (escluse M2M/IoT) nell'ultimo trimestre disponibile, con variazione rispetto a 12 mesi prima.</p>
-      <div class="chart-wrap">
-        <!-- CHART:mobile -->
-        __CHART_MOBILE__
-        <!-- /CHART:mobile -->
-      </div>
-      <p class="source">Fonte: <a href="https://www.agcom.it/comunicazione/comunicati-stampa" target="_blank" rel="noopener">AGCOM — Osservatorio sulle Comunicazioni</a> · aggiornamento trimestrale</p>
-    </section>
-
-    <section class="card">
-      <h2>3 · Desertificazione bancaria</h2>
-      <p class="sub">Numero totale di sportelli bancari aperti in Italia, a fine anno. La rete fisica si è quasi <strong>dimezzata in 15 anni</strong>: oltre 11mila sportelli chiusi dal picco del 2012, accelerazione durante la pandemia.</p>
-      <div class="chart-wrap">
-        <!-- CHART:desertification -->
-        __CHART_DESERTIFICATION__
-        <!-- /CHART:desertification -->
-      </div>
-      <p class="source">Fonte: <a href="https://www.firstcisl.it/tag/osservatorio-desertificazione-bancaria/" target="_blank" rel="noopener">First CISL — Osservatorio sulla Desertificazione Bancaria</a> (su dati Banca d'Italia / ISTAT) · aggiornamento annuale (fine gennaio)</p>
-    </section>
-
-    <section class="card">
-      <h2>4 · Cashless vs contanti</h2>
-      <p class="sub">Quota dei consumi delle famiglie italiane regolata con strumenti elettronici (<strong>blu pieno</strong>) o in contante (<strong>oro tratteggiato</strong>). Il sorpasso è avvenuto nel 2024.</p>
-      <div class="chart-wrap">
-        <!-- CHART:payments -->
-        __CHART_PAYMENTS__
-        <!-- /CHART:payments -->
-      </div>
-      <p class="source">Fonte: <a href="https://www.osservatori.net/innovative-payments/" target="_blank" rel="noopener">Osservatorio Innovative Payments — Politecnico di Milano</a> · aggiornamento annuale (marzo)</p>
-    </section>
-
-    <section class="card">
-      <h2>5 · Banche e fintech</h2>
-      <p class="sub">Numero clienti delle principali banche italiane nell'ultimo anno disponibile, con la <strong>variazione percentuale anno su anno</strong>. Spicca la crescita di <strong>Revolut</strong> contro la sostanziale stabilità delle tradizionali.</p>
-      <div class="chart-wrap">
-        <!-- CHART:banks -->
-        __CHART_BANKS__
-        <!-- /CHART:banks -->
-      </div>
-      <p class="source">Fonte: bilanci annuali e comunicati ufficiali · aggiornamento annuale (primavera, manuale)</p>
-    </section>
+    __TOPICS__
 
     <footer>
       <span>Generato automaticamente · build __BUILD_DATE__</span>
@@ -512,6 +459,23 @@ TEMPLATE = """<!doctype html>
 </body>
 </html>
 """
+
+
+def render_topic(t: dict) -> str:
+    """Renderizza una singola sezione topic.
+
+    `t` è un dict con: title, subtitle, chart_html, source_html, updated_at.
+    Mostra anche la data dell'ultimo aggiornamento sotto al titolo,
+    per dare contesto su 'perché è in questa posizione'.
+    """
+    return f"""    <section class="card">
+      <h2>{t['title']}</h2>
+      <p class="sub">{t['subtitle']}</p>
+      <div class="chart-wrap">
+        {t['chart_html']}
+      </div>
+      <p class="source">{t['source_html']}</p>
+    </section>"""
 
 
 def main() -> int:
@@ -526,27 +490,60 @@ def main() -> int:
     with open(DATA_DIR / "desertificazione_bancaria.json", "r", encoding="utf-8") as f:
         desert_data = json.load(f)
 
-    bev_html = chart_bev(bev_data)
-    pay_html = chart_payments(pay_data)
-    mob_html = chart_mobile(mob_data)
-    banks_html = chart_banks(banks_data)
-    desert_html = chart_desertification(desert_data)
+    # I 5 topic come lista ordinabile. Ogni elemento ha la sua data di ultimo
+    # aggiornamento; vengono renderizzati per updated_at DECRESCENTE
+    # (il più recente in cima al feed).
+    topics = [
+        {
+            "key": "bev",
+            "updated_at": bev_data.get("updated_at", ""),
+            "title": "Auto full electric immatricolate",
+            "subtitle": "Nuove BEV registrate ogni mese in Italia. <strong>Barre verdi</strong>: numero immatricolazioni. <strong>Linea ruggine</strong>: quota di mercato.",
+            "chart_html": chart_bev(bev_data),
+            "source_html": 'Fonte: <a href="https://unrae.it/notizie" target="_blank" rel="noopener">UNRAE</a> · aggiornamento mensile',
+        },
+        {
+            "key": "mobile",
+            "updated_at": mob_data.get("updated_at", ""),
+            "title": "Operatori telefonici mobili",
+            "subtitle": "Classifica per quota di mercato sulle SIM <strong>Human</strong> (escluse M2M/IoT) nell'ultimo trimestre disponibile, con variazione rispetto a 12 mesi prima.",
+            "chart_html": chart_mobile(mob_data),
+            "source_html": 'Fonte: <a href="https://www.agcom.it/comunicazione/comunicati-stampa" target="_blank" rel="noopener">AGCOM — Osservatorio sulle Comunicazioni</a> · aggiornamento trimestrale',
+        },
+        {
+            "key": "desert",
+            "updated_at": desert_data.get("updated_at", ""),
+            "title": "Desertificazione bancaria",
+            "subtitle": "Numero totale di sportelli bancari aperti in Italia, a fine anno. La rete fisica si è quasi <strong>dimezzata in 15 anni</strong>: oltre 11mila sportelli chiusi dal picco del 2012, accelerazione durante la pandemia.",
+            "chart_html": chart_desertification(desert_data),
+            "source_html": 'Fonte: <a href="https://www.firstcisl.it/tag/osservatorio-desertificazione-bancaria/" target="_blank" rel="noopener">First CISL — Osservatorio sulla Desertificazione Bancaria</a> (su dati Banca d\'Italia / ISTAT) · aggiornamento annuale (fine gennaio)',
+        },
+        {
+            "key": "payments",
+            "updated_at": pay_data.get("updated_at", ""),
+            "title": "Cashless vs contanti",
+            "subtitle": "Quota dei consumi delle famiglie italiane regolata con strumenti elettronici (<strong>blu pieno</strong>) o in contante (<strong>oro tratteggiato</strong>). Il sorpasso è avvenuto nel 2024.",
+            "chart_html": chart_payments(pay_data),
+            "source_html": 'Fonte: <a href="https://www.osservatori.net/innovative-payments/" target="_blank" rel="noopener">Osservatorio Innovative Payments — Politecnico di Milano</a> · aggiornamento annuale (marzo)',
+        },
+        {
+            "key": "banks",
+            "updated_at": banks_data.get("updated_at", ""),
+            "title": "Banche e fintech",
+            "subtitle": "Numero clienti delle principali banche italiane nell'ultimo anno disponibile, con la <strong>variazione percentuale anno su anno</strong>. Spicca la crescita di <strong>Revolut</strong> contro la sostanziale stabilità delle tradizionali.",
+            "chart_html": chart_banks(banks_data),
+            "source_html": 'Fonte: bilanci annuali e comunicati ufficiali · aggiornamento annuale (primavera, manuale)',
+        },
+    ]
+    # Feed-style: il più recente in cima. A parità di data, ordine stabile.
+    topics.sort(key=lambda t: t["updated_at"], reverse=True)
 
-    updated_at = max(
-        bev_data.get("updated_at", ""),
-        pay_data.get("updated_at", ""),
-        mob_data.get("updated_at", ""),
-        banks_data.get("updated_at", ""),
-        desert_data.get("updated_at", ""),
-    )
+    topics_html = "\n\n".join(render_topic(t) for t in topics)
+    updated_at = max(t["updated_at"] for t in topics) or "—"
 
     out = (TEMPLATE
-           .replace("__CHART_BEV__", bev_html)
-           .replace("__CHART_PAYMENTS__", pay_html)
-           .replace("__CHART_MOBILE__", mob_html)
-           .replace("__CHART_BANKS__", banks_html)
-           .replace("__CHART_DESERTIFICATION__", desert_html)
-           .replace("__UPDATED_AT__", updated_at or "—")
+           .replace("__TOPICS__", topics_html)
+           .replace("__UPDATED_AT__", updated_at)
            .replace("__BUILD_DATE__", date.today().isoformat()))
 
     OUTPUT_HTML.write_text(out, encoding="utf-8")

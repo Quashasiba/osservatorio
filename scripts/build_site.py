@@ -128,24 +128,78 @@ def chart_payments(data: dict) -> str:
 
 
 def chart_mobile(data: dict) -> str:
+    """
+    Bar chart orizzontale dell'ultimo trimestre, ordinato per quota decrescente.
+    Mostra accanto a ogni barra la variazione vs lo stesso trimestre dell'anno prima.
+    """
     obs = data["observations"]
-    periods = [o["period"] for o in obs]
+    operators = data["operators"]
+    if not obs:
+        return ""
+
+    latest = obs[-1]
+    # Trova l'osservazione di 4 trimestri fa (stesso trimestre anno precedente)
+    latest_period = latest["period"]  # es. "2025-Q4"
+    year, q = latest_period.split("-")
+    yoy_period = f"{int(year) - 1}-{q}"
+    yoy = next((o for o in obs if o["period"] == yoy_period), None)
+
+    # Ordina operatori per quota decrescente nell'ultimo trimestre
+    sorted_ops = sorted(operators, key=lambda op: latest.get(op, 0), reverse=True)
+    values = [latest.get(op, 0) for op in sorted_ops]
+
+    # Calcola delta anno su anno (in punti percentuali)
+    deltas = []
+    for op in sorted_ops:
+        if yoy and yoy.get(op) is not None:
+            d = latest.get(op, 0) - yoy.get(op, 0)
+            deltas.append(d)
+        else:
+            deltas.append(None)
+
+    # Etichette testuali a destra di ogni barra: "23.5%  ▲ +1.0 pp"
+    text_labels = []
+    for v, d in zip(values, deltas):
+        if d is None:
+            text_labels.append(f"  {v:.1f}%")
+        elif d > 0.05:
+            text_labels.append(f"  {v:.1f}%   ▲ +{d:.1f} pp")
+        elif d < -0.05:
+            text_labels.append(f"  {v:.1f}%   ▼ {d:.1f} pp")
+        else:
+            text_labels.append(f"  {v:.1f}%   ◆ ≈ 0")
+
+    colors = [COLOR_OPERATORS.get(op, "#666") for op in sorted_ops]
 
     fig = go.Figure()
-    for op in data["operators"]:
-        ys = [o.get(op) for o in obs]
-        color = COLOR_OPERATORS.get(op, "#666")
-        fig.add_trace(go.Scatter(
-            x=periods, y=ys, name=op,
-            mode="lines+markers",
-            line=dict(color=color, width=2.5),
-            marker=dict(size=8),
-            hovertemplate=f"<b>{op}</b><br>%{{x}}: %{{y}}% SIM Human<extra></extra>",
-        ))
+    fig.add_trace(go.Bar(
+        x=values,
+        y=sorted_ops,
+        orientation="h",
+        marker_color=colors,
+        text=text_labels,
+        textposition="outside",
+        textfont=dict(family=FONT_FAMILY, size=13, color=COLOR_FG),
+        cliponaxis=False,
+        hovertemplate="<b>%{y}</b><br>%{x}% SIM Human<extra></extra>",
+    ))
 
     layout = common_layout()
-    layout["yaxis"] = dict(title="", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID,
-                          automargin=True, ticksuffix="%", range=[10, 30])
+    # Asse Y: nomi operatori, asse X: quota %
+    layout["yaxis"] = dict(
+        autorange="reversed",  # il primo in alto
+        showgrid=False,
+        automargin=True,
+        tickfont=dict(size=13),
+    )
+    layout["xaxis"] = dict(
+        showgrid=True, gridcolor=COLOR_GRID,
+        ticksuffix="%", range=[0, max(values) * 1.35],  # spazio per le label a destra
+        automargin=True,
+    )
+    layout["showlegend"] = False
+    # Margine sinistro maggiore per i nomi operatori
+    layout["margin"] = dict(l=130, r=40, t=30, b=40)
     fig.update_layout(**layout)
 
     return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-mobile",
@@ -244,7 +298,7 @@ TEMPLATE = """<!doctype html>
 
     <section class="card">
       <h2>3 · Operatori telefonici mobili</h2>
-      <p class="sub">Quota di mercato dei principali operatori sulle SIM <strong>Human</strong> (escluse le SIM M2M/IoT). Dato trimestrale.</p>
+      <p class="sub">Classifica per quota di mercato sulle SIM <strong>Human</strong> (escluse M2M/IoT) nell'ultimo trimestre disponibile, con variazione rispetto a 12 mesi prima.</p>
       <div class="chart-wrap">
         <!-- CHART:mobile -->
         __CHART_MOBILE__

@@ -13,7 +13,7 @@ sposta TEMPLATE in docs/template.html e leggilo da file.
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import plotly.graph_objects as go
@@ -55,7 +55,7 @@ def common_layout() -> dict:
         paper_bgcolor=COLOR_BG,
         plot_bgcolor=COLOR_BG,
         font=dict(family=FONT_FAMILY, color=COLOR_FG, size=12),
-        margin=dict(l=48, r=48, t=24, b=72),
+        margin=dict(l=48, r=48, t=60, b=72),  # top maggiore per range buttons
         hovermode="x unified",
         xaxis=dict(showgrid=False, linecolor=COLOR_GRID, automargin=True),
         yaxis=dict(gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True),
@@ -68,9 +68,34 @@ def common_layout() -> dict:
     )
 
 
+def chart_config(static: bool = False) -> dict:
+    """Config Plotly comune. static=True disabilita ogni interazione (per chart snapshot)."""
+    return {
+        "displayModeBar": False,
+        "responsive": True,
+        "scrollZoom": False,
+        "doubleClick": False,
+        "staticPlot": static,
+    }
+
+
+def rangeselector(buttons: list, active_color: str) -> dict:
+    """Range selector buttons sopra al grafico, stile coerente col resto del sito."""
+    return dict(
+        buttons=buttons,
+        x=0, y=1.18,
+        xanchor="left", yanchor="top",
+        bgcolor=COLOR_BG,
+        bordercolor=COLOR_GRID,
+        borderwidth=1,
+        font=dict(family=FONT_FAMILY, color=COLOR_FG, size=11),
+        activecolor=active_color,
+    )
+
+
 def chart_bev(data: dict) -> str:
     obs = data["observations"]
-    periods = [o["period"] for o in obs]
+    periods = [datetime.strptime(o["period"], "%Y-%m") for o in obs]
     regs = [o["registrations"] for o in obs]
     shares = [o.get("market_share_pct") for o in obs]
 
@@ -78,53 +103,70 @@ def chart_bev(data: dict) -> str:
     fig.add_trace(go.Bar(
         x=periods, y=regs, name="Immatricolazioni",
         marker_color=COLOR_BEV,
-        hovertemplate="<b>%{x}</b><br>%{y:,} immatricolazioni<extra></extra>",
+        hovertemplate="<b>%{x|%b %Y}</b><br>%{y:,} immatricolazioni<extra></extra>",
     ))
     fig.add_trace(go.Scatter(
         x=periods, y=shares, name="Market share %",
         mode="lines+markers", yaxis="y2",
         line=dict(color=COLOR_BEV_LINE, width=2.5),
         marker=dict(size=7),
-        hovertemplate="<b>%{x}</b><br>%{y}% market share<extra></extra>",
+        hovertemplate="<b>%{x|%b %Y}</b><br>%{y}%% market share<extra></extra>",
     ))
     layout = common_layout()
+    layout["xaxis"] = dict(
+        type="date", showgrid=False, linecolor=COLOR_GRID, automargin=True,
+        rangeselector=rangeselector([
+            dict(count=6, label="6 mesi", step="month", stepmode="backward"),
+            dict(count=12, label="1 anno", step="month", stepmode="backward"),
+            dict(step="all", label="Tutto"),
+        ], active_color=COLOR_BEV),
+    )
     layout["yaxis"] = dict(title="", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True)
-    layout["yaxis2"] = dict(title="", overlaying="y", side="right", showgrid=False, ticksuffix="%", automargin=True)
+    layout["yaxis2"] = dict(title="", overlaying="y", side="right", showgrid=False,
+                           ticksuffix="%", automargin=True)
     fig.update_layout(**layout)
 
     return pio.to_html(fig, include_plotlyjs="cdn", full_html=False, div_id="chart-bev",
-                       config={"displayModeBar": False, "responsive": True, "staticPlot": True})
+                       config=chart_config(static=False))
 
 
 def chart_payments(data: dict) -> str:
     obs = data["observations"]
-    years = [o["year"] for o in obs]
+    years_dt = [datetime(o["year"], 1, 1) for o in obs]
     cashless = [o["cashless_pct"] for o in obs]
     cash = [o["cash_pct"] for o in obs]
-    values = [o.get("cashless_value_bn_eur") for o in obs]
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=years, y=cashless, name="Pagamenti elettronici",
+        x=years_dt, y=cashless, name="Pagamenti elettronici",
         mode="lines+markers",
         line=dict(color=COLOR_PAY, width=3),
         marker=dict(size=9),
-        hovertemplate="<b>%{x}</b><br>Cashless: %{y}% dei consumi<extra></extra>",
+        hovertemplate="<b>%{x|%Y}</b><br>Cashless: %{y}%% dei consumi<extra></extra>",
     ))
     fig.add_trace(go.Scatter(
-        x=years, y=cash, name="Contanti",
+        x=years_dt, y=cash, name="Contanti",
         mode="lines+markers",
         line=dict(color=COLOR_PAY_LINE, width=3, dash="dot"),
         marker=dict(size=9),
-        hovertemplate="<b>%{x}</b><br>Contante: %{y}% dei consumi<extra></extra>",
+        hovertemplate="<b>%{x|%Y}</b><br>Contante: %{y}%% dei consumi<extra></extra>",
     ))
     layout = common_layout()
+    layout["xaxis"] = dict(
+        type="date", showgrid=False, linecolor=COLOR_GRID, automargin=True,
+        tickformat="%Y",
+        rangeselector=rangeselector([
+            dict(count=3, label="3 anni", step="year", stepmode="backward"),
+            dict(count=5, label="5 anni", step="year", stepmode="backward"),
+            dict(step="all", label="Tutto"),
+        ], active_color=COLOR_PAY),
+    )
     layout["yaxis"] = dict(title="", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID,
                           automargin=True, ticksuffix="%", range=[0, 70])
     fig.update_layout(**layout)
 
     return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-payments",
-                       config={"displayModeBar": False, "responsive": True, "staticPlot": True})
+                       config=chart_config(static=False))
 
 
 def chart_mobile(data: dict) -> str:
@@ -193,7 +235,7 @@ def chart_mobile(data: dict) -> str:
     fig.update_layout(**layout)
 
     return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-mobile",
-                       config={"displayModeBar": False, "responsive": True, "staticPlot": True})
+                       config=chart_config(static=True))
 
 
 TEMPLATE = """<!doctype html>

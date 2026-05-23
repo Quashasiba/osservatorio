@@ -105,7 +105,7 @@ def chart_bev(data: dict) -> str:
     regs = [o["registrations"] for o in obs]
     shares = [o.get("market_share_pct") for o in obs]
 
-    BAR_WIDTH_MS = 2.4e9  # ~28 giorni: larghezza fissa stabile a tutti gli zoom
+    BAR_WIDTH_MS = 2.0e9  # ~23 giorni: width fissa con gap visibile tra barre
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -124,13 +124,15 @@ def chart_bev(data: dict) -> str:
         hovertemplate="<b>%{x|%b %Y}</b><br>%{y}%% market share<extra></extra>",
     ))
     layout = common_layout()
-    # Range iniziale: ultimi 12 mesi (l'utente può espandere coi bottoni)
+    # Margin esplicito per avere spazio attorno al plot area
+    layout["margin"] = dict(l=60, r=60, t=30, b=50)
+    # Range iniziale: ultimi 12 mesi con padding generoso ai bordi (50 giorni)
     last_dt = periods[-1]
     initial_start = datetime(last_dt.year - 1, last_dt.month, 15)
-    # Padding di 25 giorni: garantisce che le barre estreme (larghe ~14 gg/lato) siano interamente visibili
     layout["xaxis"] = dict(
-        type="date", showgrid=False, linecolor=COLOR_GRID, automargin=True,
-        range=[initial_start - timedelta(days=25), last_dt + timedelta(days=25)],
+        type="date", showgrid=False, linecolor=COLOR_GRID,
+        # NIENTE automargin: stava interferendo col range esplicito
+        range=[initial_start - timedelta(days=50), last_dt + timedelta(days=50)],
         rangeselector=rangeselector([
             dict(count=6, label="6 mesi", step="month", stepmode="backward"),
             dict(count=12, label="1 anno", step="month", stepmode="backward"),

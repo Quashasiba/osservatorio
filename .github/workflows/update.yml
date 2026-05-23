@@ -39,8 +39,12 @@ jobs:
         run: python scripts/fetch_bev.py
         continue-on-error: true # Se UNRAE fallisce, continua con gli altri
 
-      - name: Fetch dati pagamenti (Banca d'Italia)
+      - name: Fetch dati pagamenti (PoliMi)
         run: python scripts/fetch_payments.py
+        continue-on-error: true
+
+      - name: Fetch dati operatori mobili (AGCOM)
+        run: python scripts/fetch_mobile.py
         continue-on-error: true
 
       - name: Genera sito

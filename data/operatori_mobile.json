@@ -1,0 +1,53 @@
+{
+  "source": "AGCOM - Osservatorio sulle Comunicazioni",
+  "note": "Quote di mercato (%) sulle SIM Human (escluse M2M/IoT). Top 4 operatori. Vodafone e Fastweb sono aggregati come 'Vodafone+Fastweb' anche retroattivamente per coerenza (fusione 2025). I trimestri marcati con 'estimated: true' sono stime interpolate dai trimestri vicini in attesa che lo scraper li sostituisca con i dati ufficiali AGCOM.",
+  "updated_at": "2026-05-16",
+  "operators": ["TIM", "Vodafone+Fastweb", "WindTre", "Iliad"],
+  "observations": [
+    {
+      "period": "2024-Q3",
+      "TIM": 23.5,
+      "Vodafone+Fastweb": 26.1,
+      "WindTre": 24.0,
+      "Iliad": 14.6
+    },
+    {
+      "period": "2024-Q4",
+      "TIM": 23.4,
+      "Vodafone+Fastweb": 26.0,
+      "WindTre": 23.9,
+      "Iliad": 14.85,
+      "estimated": true
+    },
+    {
+      "period": "2025-Q1",
+      "TIM": 23.3,
+      "Vodafone+Fastweb": 25.85,
+      "WindTre": 23.85,
+      "Iliad": 15.1,
+      "estimated": true
+    },
+    {
+      "period": "2025-Q2",
+      "TIM": 23.1,
+      "Vodafone+Fastweb": 25.6,
+      "WindTre": 23.8,
+      "Iliad": 15.35,
+      "estimated": true
+    },
+    {
+      "period": "2025-Q3",
+      "TIM": 22.9,
+      "Vodafone+Fastweb": 25.4,
+      "WindTre": 23.7,
+      "Iliad": 15.6
+    },
+    {
+      "period": "2025-Q4",
+      "TIM": 22.5,
+      "Vodafone+Fastweb": 25.1,
+      "WindTre": 23.5,
+      "Iliad": 15.9
+    }
+  ]
+}

@@ -32,6 +32,14 @@ COLOR_BEV_LINE = "#c9542e"   # accento ruggine per share
 COLOR_PAY = "#2c4a7a"        # blu scuro per operazioni
 COLOR_PAY_LINE = "#b8893a"   # accento oro per valore
 
+# Palette operatori telefonici (coerenti coi brand ma armoniche col resto del sito)
+COLOR_OPERATORS = {
+    "TIM": "#c0392b",              # rosso TIM
+    "Vodafone+Fastweb": "#3d5a80", # blu navy
+    "WindTre": "#d68438",          # arancio bruciato
+    "Iliad": "#1a1a1a",            # nero
+}
+
 # Font Plotly — il sito carica Fraunces e Geist via Google Fonts
 FONT_FAMILY = "Geist, system-ui, sans-serif"
 
@@ -116,6 +124,31 @@ def chart_payments(data: dict) -> str:
     fig.update_layout(**layout)
 
     return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-payments",
+                       config={"displayModeBar": False, "responsive": True})
+
+
+def chart_mobile(data: dict) -> str:
+    obs = data["observations"]
+    periods = [o["period"] for o in obs]
+
+    fig = go.Figure()
+    for op in data["operators"]:
+        ys = [o.get(op) for o in obs]
+        color = COLOR_OPERATORS.get(op, "#666")
+        fig.add_trace(go.Scatter(
+            x=periods, y=ys, name=op,
+            mode="lines+markers",
+            line=dict(color=color, width=2.5),
+            marker=dict(size=8),
+            hovertemplate=f"<b>{op}</b><br>%{{x}}: %{{y}}% SIM Human<extra></extra>",
+        ))
+
+    layout = common_layout()
+    layout["yaxis"] = dict(title="", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID,
+                          automargin=True, ticksuffix="%", range=[10, 30])
+    fig.update_layout(**layout)
+
+    return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-mobile",
                        config={"displayModeBar": False, "responsive": True})
 
 
@@ -209,6 +242,17 @@ TEMPLATE = """<!doctype html>
       <p class="source">Fonte: <a href="https://www.osservatori.net/innovative-payments/" target="_blank" rel="noopener">Osservatorio Innovative Payments — Politecnico di Milano</a> · aggiornamento annuale (marzo)</p>
     </section>
 
+    <section class="card">
+      <h2>3 · Operatori telefonici mobili</h2>
+      <p class="sub">Quota di mercato dei principali operatori sulle SIM <strong>Human</strong> (escluse le SIM M2M/IoT). Dato trimestrale.</p>
+      <div class="chart-wrap">
+        <!-- CHART:mobile -->
+        __CHART_MOBILE__
+        <!-- /CHART:mobile -->
+      </div>
+      <p class="source">Fonte: <a href="https://www.agcom.it/comunicazione/comunicati-stampa" target="_blank" rel="noopener">AGCOM — Osservatorio sulle Comunicazioni</a> · aggiornamento trimestrale</p>
+    </section>
+
     <footer>
       <span>Generato automaticamente · build __BUILD_DATE__</span>
       <span>Codice e dati: <a href="#" style="color:inherit">repo GitHub</a></span>
@@ -224,16 +268,23 @@ def main() -> int:
         bev_data = json.load(f)
     with open(DATA_DIR / "pagamenti_italia.json", "r", encoding="utf-8") as f:
         pay_data = json.load(f)
+    with open(DATA_DIR / "operatori_mobile.json", "r", encoding="utf-8") as f:
+        mob_data = json.load(f)
 
     bev_html = chart_bev(bev_data)
     pay_html = chart_payments(pay_data)
+    mob_html = chart_mobile(mob_data)
 
-    # Data dell'ultimo aggiornamento (max tra i due dataset)
-    updated_at = max(bev_data.get("updated_at", ""), pay_data.get("updated_at", ""))
+    updated_at = max(
+        bev_data.get("updated_at", ""),
+        pay_data.get("updated_at", ""),
+        mob_data.get("updated_at", ""),
+    )
 
     out = (TEMPLATE
            .replace("__CHART_BEV__", bev_html)
            .replace("__CHART_PAYMENTS__", pay_html)
+           .replace("__CHART_MOBILE__", mob_html)
            .replace("__UPDATED_AT__", updated_at or "—")
            .replace("__BUILD_DATE__", date.today().isoformat()))
 

@@ -105,7 +105,8 @@ def chart_bev(data: dict) -> str:
     regs = [o["registrations"] for o in obs]
     shares = [o.get("market_share_pct") for o in obs]
 
-    BAR_WIDTH_MS = 2.0e9  # ~23 giorni: width fissa con gap visibile tra barre
+    BAR_WIDTH_MS = 2.0e9  # ~23 giorni
+    HALF_BAR_PAD = timedelta(days=13)  # appena oltre la mezza-width per non tagliare le barre estreme
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -124,15 +125,16 @@ def chart_bev(data: dict) -> str:
         hovertemplate="<b>%{x|%b %Y}</b><br>%{y}%% market share<extra></extra>",
     ))
     layout = common_layout()
-    # Margin esplicito per avere spazio attorno al plot area
     layout["margin"] = dict(l=60, r=60, t=30, b=50)
-    # Range iniziale: ultimi 12 mesi con padding generoso ai bordi (50 giorni)
+    # Bordo dx = mezza barra dopo l'ultimo dato (così l'ultima barra non viene tagliata
+    # ma l'asse NON arriva al mese successivo che sarebbe vuoto)
     last_dt = periods[-1]
-    initial_start = datetime(last_dt.year - 1, last_dt.month, 15)
+    right_edge = last_dt + HALF_BAR_PAD
+    # Range iniziale: ESATTAMENTE gli ultimi 12 mesi di dati (no buchi)
+    initial_start = right_edge - timedelta(days=365)
     layout["xaxis"] = dict(
         type="date", showgrid=False, linecolor=COLOR_GRID,
-        # NIENTE automargin: stava interferendo col range esplicito
-        range=[initial_start - timedelta(days=50), last_dt + timedelta(days=50)],
+        range=[initial_start, right_edge],
         rangeselector=rangeselector([
             dict(count=6, label="6 mesi", step="month", stepmode="backward"),
             dict(count=12, label="1 anno", step="month", stepmode="backward"),
@@ -173,13 +175,17 @@ def chart_payments(data: dict) -> str:
         hovertemplate="<b>%{x|%Y}</b><br>Contante: %{y}%% dei consumi<extra></extra>",
     ))
     layout = common_layout()
-    # Range esplicito con 6 mesi di padding sui bordi (evita di tagliare i marker estremi)
+    layout["margin"] = dict(l=60, r=60, t=30, b=50)
+    # Range esplicito: dal 6 mesi prima del primo dato al 31 dic dell'ultimo anno con dati.
+    # In questo modo l'asse NON mostra anni successivi vuoti.
+    first_year = years_dt[0].year
+    last_year = years_dt[-1].year
     layout["xaxis"] = dict(
-        type="date", showgrid=False, linecolor=COLOR_GRID, automargin=True,
+        type="date", showgrid=False, linecolor=COLOR_GRID,
         tickformat="%Y",
         range=[
-            datetime(years_dt[0].year - 1, 7, 1),
-            datetime(years_dt[-1].year + 1, 7, 1),
+            datetime(first_year - 1, 7, 1),
+            datetime(last_year, 12, 31),
         ],
         rangeselector=rangeselector([
             dict(count=3, label="3 anni", step="year", stepmode="backward"),

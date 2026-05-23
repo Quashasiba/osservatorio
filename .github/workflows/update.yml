@@ -2,8 +2,18 @@ name: Aggiorna dati mensili
 
 on:
   schedule:
-    # Ogni 15 del mese alle 09:00 UTC (10:00/11:00 italiane secondo ora solare/legale)
-    - cron: "0 9 15 * *"
+    # Schedule ottimizzato sulle fonti:
+    #
+    # 1) UNRAE pubblica i dati BEV nei primi 1-4 giorni del mese successivo.
+    #    Lanciamo il giorno 6 alle 09:00 UTC (~10:00/11:00 italiane) per avere
+    #    margine in caso di slittamento (es. weekend/festivi).
+    - cron: "0 9 6 * *"
+    #
+    # 2) PoliMi (Osservatorio Innovative Payments) pubblica il dato annuale
+    #    cashless intorno al 12 marzo. Run extra il 16 marzo per cogliere il
+    #    dato 4 giorni dopo, invece di aspettare il 6 aprile.
+    - cron: "0 9 16 3 *"
+
   workflow_dispatch: # Permette di lanciarlo manualmente dal tab Actions
 
 permissions:
@@ -14,10 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"

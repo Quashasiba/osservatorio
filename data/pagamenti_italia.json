@@ -1,20 +1,13 @@
 {
-  "source": "Banca d'Italia",
-  "note": "Dati di esempio per inizializzare la serie storica trimestrale. Vengono aggiornati automaticamente da fetch_payments.py. Per dati ufficiali: bancaditalia.it/pubblicazioni/sistema-pagamenti/",
-  "updated_at": "2026-03-31",
+  "source": "Osservatorio Innovative Payments - School of Management Politecnico di Milano",
+  "note": "Quote percentuali dei consumi delle famiglie italiane regolati con strumenti cashless vs contante. Dati annuali, presentati ogni marzo. Dati 2020-2023 ricostruiti da comunicati stampa storici (alcune cifre sono approssimate). Sorpasso strutturale del cashless sul contante avvenuto nel 2024.",
+  "updated_at": "2026-03-12",
   "observations": [
-    { "period": "2022-Q4", "operations_billions": 2.70, "value_billions_eur": 3019 },
-    { "period": "2023-Q1", "operations_billions": 2.85, "value_billions_eur": 3050 },
-    { "period": "2023-Q2", "operations_billions": 3.00, "value_billions_eur": 3100 },
-    { "period": "2023-Q3", "operations_billions": 3.10, "value_billions_eur": 3120 },
-    { "period": "2023-Q4", "operations_billions": 3.20, "value_billions_eur": 3150 },
-    { "period": "2024-Q1", "operations_billions": 3.30, "value_billions_eur": 3180 },
-    { "period": "2024-Q2", "operations_billions": 3.45, "value_billions_eur": 3210 },
-    { "period": "2024-Q3", "operations_billions": 3.55, "value_billions_eur": 3240 },
-    { "period": "2024-Q4", "operations_billions": 3.70, "value_billions_eur": 3280 },
-    { "period": "2025-Q1", "operations_billions": 3.78, "value_billions_eur": 3290 },
-    { "period": "2025-Q2", "operations_billions": 3.85, "value_billions_eur": 3310 },
-    { "period": "2025-Q3", "operations_billions": 3.90, "value_billions_eur": 3325 },
-    { "period": "2025-Q4", "operations_billions": 3.93, "value_billions_eur": 3339 }
+    { "year": 2020, "cashless_pct": 33.0, "cash_pct": 60.0, "cashless_value_bn_eur": 268 },
+    { "year": 2021, "cashless_pct": 38.0, "cash_pct": 55.0, "cashless_value_bn_eur": 327 },
+    { "year": 2022, "cashless_pct": 40.0, "cash_pct": 50.0, "cashless_value_bn_eur": 397 },
+    { "year": 2023, "cashless_pct": 41.0, "cash_pct": 47.0, "cashless_value_bn_eur": 444 },
+    { "year": 2024, "cashless_pct": 43.0, "cash_pct": 41.0, "cashless_value_bn_eur": 481 },
+    { "year": 2025, "cashless_pct": 45.0, "cash_pct": 38.0, "cashless_value_bn_eur": 518 }
   ]
 }

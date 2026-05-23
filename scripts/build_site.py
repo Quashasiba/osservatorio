@@ -254,46 +254,82 @@ def chart_mobile(data: dict) -> str:
 
 
 def chart_banks(data: dict) -> str:
-    """Line chart multi-trace: numero clienti (in milioni) per banca, anno per anno.
+    """Bar chart orizzontale: snapshot ultimo anno disponibile + delta % vs primo anno.
 
-    Ultimi 10 anni di dati. Fintech vs banche tradizionali: traccia evidente
-    di Revolut (fintech) che cresce in modo esponenziale mentre le tradizionali
-    sono stabili.
+    Pattern stilistico simile a chart_mobile (operatori), ma orizzontale perché
+    i nomi delle banche sono lunghi e meritano spazio a sinistra.
     """
+    # Mostra SEMPRE solo gli ultimi 10 anni; primo e ultimo definiscono il delta
     obs = data["observations"][-10:]
     banks = data["banks"]
-    years_dt = [datetime(o["year"], 1, 1) for o in obs]
+    first_obs = obs[0]
+    last_obs = obs[-1]
+    first_year = first_obs["year"]
+    last_year = last_obs["year"]
 
-    fig = go.Figure()
+    rows = []
     for bank in banks:
         name = bank["name"]
-        color = bank["color"]
-        is_fintech = bank.get("type") == "fintech"
-        values = [o.get(name) for o in obs]
-        fig.add_trace(go.Scatter(
-            x=years_dt, y=values, name=name,
-            mode="lines+markers",
-            line=dict(color=color, width=3 if is_fintech else 2),
-            marker=dict(size=8 if is_fintech else 6),
-            cliponaxis=False,
-            hovertemplate=f"<b>{name}</b><br>%{{x|%Y}}: %{{y}}M clienti<extra></extra>",
-        ))
+        v_now = last_obs.get(name)
+        v_first = first_obs.get(name)
+        if v_now is None or v_first is None or v_first == 0:
+            continue
+        delta_pct = (v_now - v_first) / v_first * 100
+        rows.append({
+            "name": name, "color": bank["color"],
+            "value": v_now, "delta_pct": delta_pct,
+        })
+    # Ordina per dimensione decrescente. Plotly bar orizzontale disegna
+    # dal basso verso l'alto, quindi inverto per avere il più grande in cima
+    rows.sort(key=lambda r: r["value"], reverse=True)
+    rows = rows[::-1]
+
+    names = [r["name"] for r in rows]
+    values = [r["value"] for r in rows]
+    colors = [r["color"] for r in rows]
+
+    # Label fuori barra: "13.6M  ▲ +23%"  /  "0.05M → 4.0M  ▲ +7.9k%"
+    def fmt_delta(d: float) -> str:
+        if abs(d) >= 1000:
+            return f"+{d/1000:.1f}k%" if d > 0 else f"-{abs(d)/1000:.1f}k%"
+        return f"{d:+.0f}%"
+
+    labels = []
+    for r in rows:
+        arrow = "▲" if r["delta_pct"] >= 0 else "▼"
+        labels.append(f"<b>{r['value']:.1f}M</b>   {arrow} {fmt_delta(r['delta_pct'])}")
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=values, y=names,
+        orientation="h",
+        marker_color=colors,
+        text=labels,
+        textposition="outside",
+        textfont=dict(size=12),
+        cliponaxis=False,
+        hovertemplate=(
+            "<b>%{y}</b><br>"
+            f"Clienti {last_year}: %{{x}}M<br>"
+            f"Variazione dal {first_year}: %{{customdata}}<extra></extra>"
+        ),
+        customdata=[fmt_delta(r["delta_pct"]) for r in rows],
+    ))
+
     layout = common_layout()
-    layout["margin"] = dict(l=60, r=60, t=30, b=50)
-    first_year = years_dt[0].year
-    last_year = years_dt[-1].year
+    layout["margin"] = dict(l=130, r=140, t=20, b=30)  # spazio nomi sx + label dx
     layout["xaxis"] = dict(
-        type="date", showgrid=False, linecolor=COLOR_GRID,
-        tickformat="%Y",
-        range=[datetime(first_year - 1, 7, 1), datetime(last_year, 12, 31)],
+        showgrid=False, showticklabels=False, zeroline=False,
+        range=[0, max(values) * 1.45],  # spazio extra per le label "outside"
     )
     layout["yaxis"] = dict(
-        gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True,
-        ticksuffix="M", rangemode="tozero",
+        showgrid=False, automargin=True,
+        tickfont=dict(size=13),
     )
+    layout["showlegend"] = False
     fig.update_layout(**layout)
     return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-banks",
-                       config=chart_config(static=False))
+                       config=chart_config(static=True))
 
 
 TEMPLATE = """<!doctype html>
@@ -399,7 +435,7 @@ TEMPLATE = """<!doctype html>
 
     <section class="card">
       <h2>4 · Banche e fintech — clienti in Italia</h2>
-      <p class="sub">Numero di clienti per le principali banche italiane. Tradizionali a linea sottile, fintech (<strong>Revolut</strong>, <strong>HYPE</strong>) a linea spessa. Mostra la crescita verticale delle fintech mentre le tradizionali sono stabili.</p>
+      <p class="sub">Numero clienti delle principali banche italiane nell'ultimo anno disponibile, con la <strong>variazione percentuale</strong> rispetto a 10 anni prima. Spicca la crescita di <strong>Revolut</strong> (fintech) contro la sostanziale stabilità delle tradizionali.</p>
       <div class="chart-wrap">
         <!-- CHART:banks -->
         __CHART_BANKS__

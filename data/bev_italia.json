@@ -1,0 +1,23 @@
+{
+  "source": "UNRAE",
+  "note": "Dati di esempio per inizializzare la serie storica. Vengono aggiornati automaticamente ogni mese dallo script fetch_bev.py. Per dati ufficiali consultare unrae.it.",
+  "updated_at": "2026-05-04",
+  "observations": [
+    { "period": "2025-01", "registrations": 4900, "market_share_pct": 5.0 },
+    { "period": "2025-02", "registrations": 5400, "market_share_pct": 4.8 },
+    { "period": "2025-03", "registrations": 8950, "market_share_pct": 5.2 },
+    { "period": "2025-04", "registrations": 6670, "market_share_pct": 4.8 },
+    { "period": "2025-05", "registrations": 5200, "market_share_pct": 4.0 },
+    { "period": "2025-06", "registrations": 5800, "market_share_pct": 4.2 },
+    { "period": "2025-07", "registrations": 5500, "market_share_pct": 4.1 },
+    { "period": "2025-08", "registrations": 3050, "market_share_pct": 4.0 },
+    { "period": "2025-09", "registrations": 6500, "market_share_pct": 4.5 },
+    { "period": "2025-10", "registrations": 7200, "market_share_pct": 4.5 },
+    { "period": "2025-11", "registrations": 6800, "market_share_pct": 4.3 },
+    { "period": "2025-12", "registrations": 7500, "market_share_pct": 4.5 },
+    { "period": "2026-01", "registrations": 11500, "market_share_pct": 7.5 },
+    { "period": "2026-02", "registrations": 10800, "market_share_pct": 7.2 },
+    { "period": "2026-03", "registrations": 15940, "market_share_pct": 8.6 },
+    { "period": "2026-04", "registrations": 13238, "market_share_pct": 8.5 }
+  ]
+}

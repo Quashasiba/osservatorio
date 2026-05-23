@@ -1,0 +1,20 @@
+{
+  "source": "Banca d'Italia",
+  "note": "Dati di esempio per inizializzare la serie storica trimestrale. Vengono aggiornati automaticamente da fetch_payments.py. Per dati ufficiali: bancaditalia.it/pubblicazioni/sistema-pagamenti/",
+  "updated_at": "2026-03-31",
+  "observations": [
+    { "period": "2022-Q4", "operations_billions": 2.70, "value_billions_eur": 3019 },
+    { "period": "2023-Q1", "operations_billions": 2.85, "value_billions_eur": 3050 },
+    { "period": "2023-Q2", "operations_billions": 3.00, "value_billions_eur": 3100 },
+    { "period": "2023-Q3", "operations_billions": 3.10, "value_billions_eur": 3120 },
+    { "period": "2023-Q4", "operations_billions": 3.20, "value_billions_eur": 3150 },
+    { "period": "2024-Q1", "operations_billions": 3.30, "value_billions_eur": 3180 },
+    { "period": "2024-Q2", "operations_billions": 3.45, "value_billions_eur": 3210 },
+    { "period": "2024-Q3", "operations_billions": 3.55, "value_billions_eur": 3240 },
+    { "period": "2024-Q4", "operations_billions": 3.70, "value_billions_eur": 3280 },
+    { "period": "2025-Q1", "operations_billions": 3.78, "value_billions_eur": 3290 },
+    { "period": "2025-Q2", "operations_billions": 3.85, "value_billions_eur": 3310 },
+    { "period": "2025-Q3", "operations_billions": 3.90, "value_billions_eur": 3325 },
+    { "period": "2025-Q4", "operations_billions": 3.93, "value_billions_eur": 3339 }
+  ]
+}

@@ -1,0 +1,227 @@
+"""
+Genera il sito statico in docs/index.html a partire dai dati in data/*.json.
+
+Pattern:
+  - Legge i JSON delle serie storiche
+  - Genera i grafici con Plotly (HTML standalone, plotly.js da CDN)
+  - Inserisce i grafici nel template HTML mantenendo stile/struttura
+  - Scrive il risultato in docs/index.html
+
+Il template HTML è inline qui sotto per semplicità. Se vuoi separarlo,
+sposta TEMPLATE in docs/template.html e leggilo da file.
+"""
+from __future__ import annotations
+
+import json
+from datetime import date
+from pathlib import Path
+
+import plotly.graph_objects as go
+import plotly.io as pio
+
+ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT / "data"
+OUTPUT_HTML = ROOT / "docs" / "index.html"
+
+# Palette coerente con il template HTML sotto
+COLOR_BG = "#faf8f3"
+COLOR_FG = "#1a1a1a"
+COLOR_GRID = "#e8e2d2"
+COLOR_BEV = "#1d6f42"        # verde scuro per BEV
+COLOR_BEV_LINE = "#c9542e"   # accento ruggine per share
+COLOR_PAY = "#2c4a7a"        # blu scuro per operazioni
+COLOR_PAY_LINE = "#b8893a"   # accento oro per valore
+
+# Font Plotly — il sito carica Fraunces e Geist via Google Fonts
+FONT_FAMILY = "Geist, system-ui, sans-serif"
+
+
+def common_layout(title: str) -> dict:
+    """Layout Plotly base condiviso da tutti i grafici."""
+    return dict(
+        title=dict(text=title, font=dict(family="Fraunces, serif", size=22, color=COLOR_FG)),
+        paper_bgcolor=COLOR_BG,
+        plot_bgcolor=COLOR_BG,
+        font=dict(family=FONT_FAMILY, color=COLOR_FG, size=13),
+        margin=dict(l=60, r=60, t=70, b=50),
+        hovermode="x unified",
+        xaxis=dict(showgrid=False, linecolor=COLOR_GRID),
+        yaxis=dict(gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+
+
+def chart_bev(data: dict) -> str:
+    obs = data["observations"]
+    periods = [o["period"] for o in obs]
+    regs = [o["registrations"] for o in obs]
+    shares = [o.get("market_share_pct") for o in obs]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=periods, y=regs, name="Immatricolazioni",
+        marker_color=COLOR_BEV,
+        hovertemplate="<b>%{x}</b><br>%{y:,} immatricolazioni<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=periods, y=shares, name="Market share %",
+        mode="lines+markers", yaxis="y2",
+        line=dict(color=COLOR_BEV_LINE, width=2.5),
+        marker=dict(size=7),
+        hovertemplate="<b>%{x}</b><br>%{y}% market share<extra></extra>",
+    ))
+    layout = common_layout("Auto full electric immatricolate in Italia")
+    layout["yaxis"] = dict(title="Immatricolazioni", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID)
+    layout["yaxis2"] = dict(title="Market share %", overlaying="y", side="right", showgrid=False, ticksuffix="%")
+    fig.update_layout(**layout)
+
+    return pio.to_html(fig, include_plotlyjs="cdn", full_html=False, div_id="chart-bev",
+                       config={"displayModeBar": False, "responsive": True})
+
+
+def chart_payments(data: dict) -> str:
+    obs = data["observations"]
+    periods = [o["period"] for o in obs]
+    ops = [o.get("operations_billions") for o in obs]
+    vals = [o.get("value_billions_eur") for o in obs]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=periods, y=ops, name="Operazioni (mld)",
+        marker_color=COLOR_PAY,
+        hovertemplate="<b>%{x}</b><br>%{y} mld operazioni<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=periods, y=vals, name="Valore (mld €)",
+        mode="lines+markers", yaxis="y2",
+        line=dict(color=COLOR_PAY_LINE, width=2.5),
+        marker=dict(size=7),
+        hovertemplate="<b>%{x}</b><br>€ %{y:,} mld<extra></extra>",
+    ))
+    layout = common_layout("Pagamenti elettronici al dettaglio — Italia")
+    layout["yaxis"] = dict(title="Operazioni (miliardi)", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID)
+    layout["yaxis2"] = dict(title="Valore (mld €)", overlaying="y", side="right", showgrid=False)
+    fig.update_layout(**layout)
+
+    return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-payments",
+                       config={"displayModeBar": False, "responsive": True})
+
+
+TEMPLATE = """<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Osservatorio Italia — Dati mensili</title>
+  <meta name="description" content="Monitoraggio mensile di indicatori italiani: auto elettriche e pagamenti elettronici.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700&family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #faf8f3;
+      --fg: #1a1a1a;
+      --fg-soft: #5a5651;
+      --rule: #d4cfc1;
+      --accent-bev: #1d6f42;
+      --accent-pay: #2c4a7a;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
+    body { font-family: "Geist", system-ui, sans-serif; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 64px 32px 96px; }
+
+    header { border-bottom: 1px solid var(--rule); padding-bottom: 28px; margin-bottom: 56px; }
+    .eyebrow { font-family: "Geist", sans-serif; text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px; color: var(--fg-soft); margin: 0 0 12px; }
+    h1 { font-family: "Fraunces", serif; font-weight: 500; font-size: clamp(38px, 5vw, 60px); line-height: 1.05; margin: 0 0 16px; letter-spacing: -0.01em; font-variation-settings: "opsz" 144; }
+    h1 em { font-style: italic; font-weight: 400; color: var(--fg-soft); }
+    .lede { font-family: "Fraunces", serif; font-size: 18px; line-height: 1.55; max-width: 62ch; color: var(--fg-soft); margin: 0; }
+
+    .meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 24px; font-size: 13px; color: var(--fg-soft); }
+    .meta span strong { color: var(--fg); font-weight: 500; }
+
+    section.card { margin-bottom: 80px; }
+    section.card h2 { font-family: "Fraunces", serif; font-weight: 500; font-size: 28px; margin: 0 0 6px; letter-spacing: -0.005em; }
+    section.card .sub { color: var(--fg-soft); font-size: 14px; margin: 0 0 28px; }
+    section.card .source { font-size: 12px; color: var(--fg-soft); margin-top: 8px; text-align: right; }
+    section.card .source a { color: inherit; text-underline-offset: 2px; }
+
+    .chart-wrap { background: var(--bg); padding: 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+
+    footer { margin-top: 96px; padding-top: 28px; border-top: 1px solid var(--rule); font-size: 12px; color: var(--fg-soft); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+
+    @media (max-width: 640px) {
+      .wrap { padding: 40px 20px 64px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <p class="eyebrow">Osservatorio Italia</p>
+      <h1>Dati mensili <em>dall'Italia che cambia</em></h1>
+      <p class="lede">Un monitoraggio essenziale di due indicatori che raccontano la transizione in corso: la diffusione dell'auto elettrica e l'uso dei pagamenti digitali.</p>
+      <div class="meta">
+        <span>Ultimo aggiornamento: <strong>__UPDATED_AT__</strong></span>
+        <span>Cadenza: <strong>mensile</strong></span>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>1 · Auto full electric immatricolate</h2>
+      <p class="sub">Numero di nuove BEV (battery electric vehicle) registrate ogni mese in Italia, con quota di mercato.</p>
+      <div class="chart-wrap">
+        <!-- CHART:bev -->
+        __CHART_BEV__
+        <!-- /CHART:bev -->
+      </div>
+      <p class="source">Fonte: <a href="https://unrae.it/notizie" target="_blank" rel="noopener">UNRAE</a> · aggiornamento mensile</p>
+    </section>
+
+    <section class="card">
+      <h2>2 · Pagamenti elettronici al dettaglio</h2>
+      <p class="sub">Operazioni e controvalore complessivo dei pagamenti non in contante, dato trimestrale.</p>
+      <div class="chart-wrap">
+        <!-- CHART:payments -->
+        __CHART_PAYMENTS__
+        <!-- /CHART:payments -->
+      </div>
+      <p class="source">Fonte: <a href="https://www.bancaditalia.it/pubblicazioni/sistema-pagamenti/" target="_blank" rel="noopener">Banca d'Italia</a> · aggiornamento trimestrale</p>
+    </section>
+
+    <footer>
+      <span>Generato automaticamente · build __BUILD_DATE__</span>
+      <span>Codice e dati: <a href="#" style="color:inherit">repo GitHub</a></span>
+    </footer>
+  </div>
+</body>
+</html>
+"""
+
+
+def main() -> int:
+    with open(DATA_DIR / "bev_italia.json", "r", encoding="utf-8") as f:
+        bev_data = json.load(f)
+    with open(DATA_DIR / "pagamenti_italia.json", "r", encoding="utf-8") as f:
+        pay_data = json.load(f)
+
+    bev_html = chart_bev(bev_data)
+    pay_html = chart_payments(pay_data)
+
+    # Data dell'ultimo aggiornamento (max tra i due dataset)
+    updated_at = max(bev_data.get("updated_at", ""), pay_data.get("updated_at", ""))
+
+    out = (TEMPLATE
+           .replace("__CHART_BEV__", bev_html)
+           .replace("__CHART_PAYMENTS__", pay_html)
+           .replace("__UPDATED_AT__", updated_at or "—")
+           .replace("__BUILD_DATE__", date.today().isoformat()))
+
+    OUTPUT_HTML.write_text(out, encoding="utf-8")
+    print(f"✓ Sito generato in {OUTPUT_HTML}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

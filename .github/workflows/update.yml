@@ -1,0 +1,64 @@
+name: Aggiorna dati mensili
+
+on:
+  schedule:
+    # Ogni 15 del mese alle 09:00 UTC (10:00/11:00 italiane secondo ora solare/legale)
+    - cron: "0 9 15 * *"
+  workflow_dispatch: # Permette di lanciarlo manualmente dal tab Actions
+
+permissions:
+  contents: write # Necessario per commit dei dati aggiornati
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Installa dipendenze
+        run: pip install -r requirements.txt
+
+      - name: Fetch dati BEV (UNRAE)
+        run: python scripts/fetch_bev.py
+        continue-on-error: true # Se UNRAE fallisce, continua con gli altri
+
+      - name: Fetch dati pagamenti (Banca d'Italia)
+        run: python scripts/fetch_payments.py
+        continue-on-error: true
+
+      - name: Genera sito
+        run: python scripts/build_site.py
+
+      - name: Commit e push aggiornamenti
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/ docs/
+          if git diff --staged --quiet; then
+            echo "Nessun aggiornamento da committare."
+          else
+            git commit -m "chore: aggiornamento dati $(date -u +'%Y-%m-%d')"
+            git push
+          fi
+
+      # --- Notifica fallimento (opzionale) ---
+      # Decommenta e configura se vuoi notifiche su Slack quando qualcosa va storto.
+      # Devi aggiungere SLACK_WEBHOOK_URL come secret nel repo (Settings → Secrets → Actions).
+      #
+      # - name: Notifica Slack se fallisce
+      #   if: failure()
+      #   uses: slackapi/slack-github-action@v1.27.0
+      #   with:
+      #     payload: |
+      #       {
+      #         "text": "❌ Aggiornamento dati Osservatorio fallito: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      #       }
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

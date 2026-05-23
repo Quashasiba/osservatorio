@@ -99,14 +99,13 @@ def rangeselector(buttons: list) -> dict:
 
 def chart_bev(data: dict) -> str:
     from datetime import timedelta
-    obs = data["observations"]
-    # Centro le date sul 15 del mese: così le barre con width fisso restano dentro al mese
+    # Mostra SEMPRE solo gli ultimi 24 mesi
+    obs = data["observations"][-24:]
     periods = [datetime.strptime(o["period"], "%Y-%m").replace(day=15) for o in obs]
     regs = [o["registrations"] for o in obs]
     shares = [o.get("market_share_pct") for o in obs]
 
     BAR_WIDTH_MS = 2.0e9  # ~23 giorni
-    HALF_BAR_PAD = timedelta(days=13)  # appena oltre la mezza-width per non tagliare le barre estreme
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -126,21 +125,10 @@ def chart_bev(data: dict) -> str:
     ))
     layout = common_layout()
     layout["margin"] = dict(l=60, r=60, t=30, b=50)
-    # Bordo dx = mezza barra dopo l'ultimo dato (così l'ultima barra non viene tagliata
-    # ma l'asse NON arriva al mese successivo che sarebbe vuoto)
-    last_dt = periods[-1]
-    right_edge = last_dt + HALF_BAR_PAD
-    # Range iniziale: ESATTAMENTE gli ultimi 12 mesi di dati (no buchi)
-    initial_start = right_edge - timedelta(days=365)
+    # Range esplicito = primo e ultimo dato visualizzato, con padding mezza-barra
     layout["xaxis"] = dict(
         type="date", showgrid=False, linecolor=COLOR_GRID,
-        range=[initial_start, right_edge],
-        rangeselector=rangeselector([
-            dict(count=6, label="6 mesi", step="month", stepmode="backward"),
-            dict(count=12, label="1 anno", step="month", stepmode="backward"),
-            dict(count=60, label="5 anni", step="month", stepmode="backward"),
-            dict(step="all", label="Tutto"),
-        ]),
+        range=[periods[0] - timedelta(days=13), periods[-1] + timedelta(days=13)],
     )
     layout["yaxis"] = dict(title="", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True)
     layout["yaxis2"] = dict(title="", overlaying="y", side="right", showgrid=False,
@@ -152,7 +140,8 @@ def chart_bev(data: dict) -> str:
 
 
 def chart_payments(data: dict) -> str:
-    obs = data["observations"]
+    # Mostra SEMPRE solo gli ultimi 10 anni
+    obs = data["observations"][-10:]
     years_dt = [datetime(o["year"], 1, 1) for o in obs]
     cashless = [o["cashless_pct"] for o in obs]
     cash = [o["cash_pct"] for o in obs]
@@ -176,8 +165,7 @@ def chart_payments(data: dict) -> str:
     ))
     layout = common_layout()
     layout["margin"] = dict(l=60, r=60, t=30, b=50)
-    # Range esplicito: dal 6 mesi prima del primo dato al 31 dic dell'ultimo anno con dati.
-    # In questo modo l'asse NON mostra anni successivi vuoti.
+    # Range esplicito = dal 6 mesi prima del primo punto al 31 dicembre dell'ultimo anno
     first_year = years_dt[0].year
     last_year = years_dt[-1].year
     layout["xaxis"] = dict(
@@ -187,11 +175,6 @@ def chart_payments(data: dict) -> str:
             datetime(first_year - 1, 7, 1),
             datetime(last_year, 12, 31),
         ],
-        rangeselector=rangeselector([
-            dict(count=3, label="3 anni", step="year", stepmode="backward"),
-            dict(count=5, label="5 anni", step="year", stepmode="backward"),
-            dict(step="all", label="Tutto"),
-        ]),
     )
     layout["yaxis"] = dict(title="", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID,
                           automargin=True, ticksuffix="%", range=[0, 70])

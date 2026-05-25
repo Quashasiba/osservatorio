@@ -485,6 +485,58 @@ def chart_auto_milano(data: dict) -> str:
                        config=chart_config(static=True))
 
 
+def chart_inquinamento(data: dict) -> str:
+    """Line chart mensile della media PM2.5 in Pianura Padana lombarda.
+
+    Mostra media delle 6 stazioni di background urbano, con la soglia OMS
+    annuale (15 µg/m³) come riferimento di lettura.
+    """
+    from datetime import timedelta
+    obs = data.get("observations", [])
+    if not obs:
+        return ('<div style="padding:60px 20px;text-align:center;color:#8a7a55;'
+                'font-style:italic;">Nessun dato disponibile.</div>')
+
+    obs = obs[-24:]
+    periods = [datetime.strptime(o["period"], "%Y-%m").replace(day=15) for o in obs]
+    values = [o["pm25_media"] for o in obs]
+
+    COLOR_PM = "#a13e2a"   # terracotta scuro - "rosso preoccupante"
+    THRESHOLD_OMS = data.get("threshold_oms_annuale", 15)
+
+    fig = go.Figure()
+    # Soglia OMS come banda di riferimento + linea
+    fig.add_hrect(y0=0, y1=THRESHOLD_OMS, fillcolor="#7d9b5a", opacity=0.08, line_width=0)
+    fig.add_hline(y=THRESHOLD_OMS, line_dash="dash", line_color="#5a7d3f", line_width=1.5,
+                  annotation_text=f"Limite OMS (annuale): {THRESHOLD_OMS} µg/m³",
+                  annotation_position="right",
+                  annotation_font=dict(size=11, color="#5a7d3f"))
+    # Linea principale
+    fig.add_trace(go.Scatter(
+        x=periods, y=values, name="PM2.5 medio",
+        mode="lines+markers",
+        line=dict(color=COLOR_PM, width=2.5),
+        marker=dict(size=7, color=COLOR_PM, line=dict(color=COLOR_BG, width=1.5)),
+        cliponaxis=False,
+        hovertemplate="<b>%{x|%b %Y}</b><br>PM2.5: <b>%{y:.1f} µg/m³</b><extra></extra>",
+    ))
+
+    layout = common_layout()
+    layout["margin"] = dict(l=60, r=160, t=30, b=50)  # margine destro extra per annotation
+    layout["xaxis"] = dict(
+        type="date", showgrid=False, linecolor=COLOR_GRID,
+        range=[periods[0] - timedelta(days=20), periods[-1] + timedelta(days=20)],
+    )
+    layout["yaxis"] = dict(
+        gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True,
+        ticksuffix=" µg/m³", rangemode="tozero",
+    )
+    layout["showlegend"] = False
+    fig.update_layout(**layout)
+    return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-inquinamento",
+                       config=chart_config(static=True))
+
+
 TEMPLATE = """<!doctype html>
 <html lang="it">
 <head>
@@ -606,6 +658,8 @@ def main() -> int:
         energy_data = json.load(f)
     with open(DATA_DIR / "auto_milano.json", "r", encoding="utf-8") as f:
         auto_data = json.load(f)
+    with open(DATA_DIR / "inquinamento_padana.json", "r", encoding="utf-8") as f:
+        pollution_data = json.load(f)
 
     # I 5 topic come lista ordinabile. Ogni elemento ha la sua data di ultimo
     # aggiornamento; vengono renderizzati per updated_at DECRESCENTE
@@ -650,6 +704,14 @@ def main() -> int:
             "subtitle": "Composizione mensile della produzione elettrica nazionale (TWh) per fonte primaria. Si vede la <strong>stagionalità del solare</strong> (estate vs inverno) e la prevalenza del <strong>gas naturale</strong> tra le fossili.",
             "chart_html": chart_energy_mix(energy_data),
             "source_html": 'Fonte: <a href="https://transparency.entsoe.eu/" target="_blank" rel="noopener">ENTSO-E Transparency Platform</a> (dati Terna) · aggiornamento mensile',
+        },
+        {
+            "key": "pollution",
+            "updated_at": pollution_data.get("updated_at", ""),
+            "title": "Inquinamento PM2.5 in Pianura Padana",
+            "subtitle": "Media mensile di particolato fine PM2.5 in <strong>6 città</strong> della Pianura Padana lombarda (Milano, Brescia, Bergamo, Cremona, Pavia, Mantova). Stagionalità marcatissima: in <strong>inverno si supera il doppio del limite OMS</strong> a causa di riscaldamento e inversioni termiche, in estate si rientra vicino alla soglia.",
+            "chart_html": chart_inquinamento(pollution_data),
+            "source_html": 'Fonte: <a href="https://www.dati.lombardia.it/Ambiente/Dati-sensori-aria/nicp-bhqi" target="_blank" rel="noopener">ARPA Lombardia</a> via dati.lombardia.it · aggiornamento mensile',
         },
         {
             "key": "auto_milano",

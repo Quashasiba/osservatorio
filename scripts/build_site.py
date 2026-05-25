@@ -538,23 +538,13 @@ TEMPLATE = """<!doctype html>
     .wrap { max-width: 1080px; margin: 0 auto; padding: 64px 32px 96px; }
 
     /* ------- HEADER ------- */
-    header.hero { border-bottom: 1px solid var(--rule); padding-bottom: 28px; margin-bottom: 24px; }
+    header.hero { border-bottom: 1px solid var(--rule); padding-bottom: 28px; margin-bottom: 56px; }
     .eyebrow { font-family: "Geist", sans-serif; text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px; color: var(--fg-soft); margin: 0 0 12px; }
     h1 { font-family: "Fraunces", serif; font-weight: 500; font-size: clamp(38px, 5vw, 60px); line-height: 1.05; margin: 0 0 16px; letter-spacing: -0.01em; font-variation-settings: "opsz" 144; }
     h1 em { font-style: italic; font-weight: 400; color: var(--fg-soft); }
     .lede { font-family: "Fraunces", serif; font-size: 18px; line-height: 1.55; max-width: 62ch; color: var(--fg-soft); margin: 0; }
     .meta { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 24px; font-size: 13px; color: var(--fg-soft); }
     .meta span strong { color: var(--fg); font-weight: 500; }
-
-    /* ------- TOC / NAV ------- */
-    nav.toc { margin: 0 0 72px; padding: 20px 0 0; font-size: 13px; }
-    nav.toc ol { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 24px; counter-reset: tocnum; }
-    nav.toc li { counter-increment: tocnum; border-top: 1px solid var(--rule-soft); padding: 10px 0; }
-    nav.toc a { text-decoration: none; color: var(--fg); display: flex; align-items: baseline; gap: 10px; transition: color .15s; }
-    nav.toc a::before { content: counter(tocnum, decimal-leading-zero); color: var(--fg-mute); font-variant-numeric: tabular-nums; font-size: 11px; min-width: 22px; }
-    nav.toc a:hover { color: var(--accent-transizione); }
-    nav.toc li[data-group="societa"] a:hover { color: var(--accent-societa); }
-    nav.toc .toc-label { font-family: "Geist", sans-serif; letter-spacing: 0.16em; text-transform: uppercase; font-size: 10px; color: var(--fg-mute); margin: 0 0 10px; }
 
     /* ------- SECTION / CARD ------- */
     section.card { margin-bottom: 96px; scroll-margin-top: 20px; }
@@ -607,8 +597,6 @@ TEMPLATE = """<!doctype html>
     @media (max-width: 640px) {
       .wrap { padding: 32px 16px 56px; }
       header.hero { margin-bottom: 16px; }
-      nav.toc { margin-bottom: 48px; }
-      nav.toc ol { grid-template-columns: 1fr; }
       h1 { font-size: 36px; }
       .lede { font-size: 16px; }
       section.card { margin-bottom: 64px; }
@@ -631,11 +619,6 @@ TEMPLATE = """<!doctype html>
         <span>Cadenze: <strong>mensile, trimestrale, annuale</strong></span>
       </div>
     </header>
-
-    <nav class="toc" aria-label="Indice dei topic">
-      <p class="toc-label">Indice</p>
-      <ol>__TOC__</ol>
-    </nav>
 
     <main>
     __TOPICS__
@@ -1003,18 +986,11 @@ def main() -> int:
 
     topics_html = "\n\n".join(render_topic(t, i) for i, t in enumerate(topics))
 
-    # TOC: una voce per topic, mantenendo l'ordine già stabilito
-    toc_items = "\n".join(
-        f'      <li data-group="{t["group"]}"><a href="#{t["key"]}">{t["title"]}</a></li>'
-        for t in topics
-    )
-
     updated_at = max(t["updated_at"] for t in topics) or "—"
     n_topics = str(len(topics))
 
     out = (TEMPLATE
            .replace("__TOPICS__", topics_html)
-           .replace("__TOC__", "\n" + toc_items + "\n    ")
            .replace("__N_TOPICS__", n_topics)
            .replace("__REPO_URL__", REPO_URL)
            .replace("__UPDATED_AT__", updated_at)

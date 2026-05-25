@@ -263,7 +263,9 @@ def chart_banks(data: dict) -> str:
     # si calcola SOLO rispetto all'anno precedente (snapshot anno su anno).
     obs = data["observations"][-10:]
     banks = data["banks"]
-    prev_obs = obs[-2]    # anno precedente per calcolo delta
+    # Confronto a 5 anni: mostra meglio le dinamiche per banche tradizionali stabili.
+    # Se la serie ha meno di 6 osservazioni, usiamo la più vecchia disponibile.
+    prev_obs = obs[-6] if len(obs) >= 6 else obs[0]
     last_obs = obs[-1]
     prev_year = prev_obs["year"]
     last_year = last_obs["year"]
@@ -312,7 +314,7 @@ def chart_banks(data: dict) -> str:
         hovertemplate=(
             "<b>%{y}</b><br>"
             f"Clienti {last_year}: %{{x}}M<br>"
-            f"Variazione vs {prev_year}: %{{customdata}}<extra></extra>"
+            f"Variazione dal {prev_year}: %{{customdata}}<extra></extra>"
         ),
         customdata=[fmt_delta(r["delta_pct"]) for r in rows],
     ))
@@ -661,7 +663,7 @@ def main() -> int:
             "key": "banks",
             "updated_at": banks_data.get("updated_at", ""),
             "title": "Banche e fintech",
-            "subtitle": "Numero clienti delle principali banche italiane nell'ultimo anno disponibile, con la <strong>variazione percentuale anno su anno</strong>. Spicca la crescita di <strong>Revolut</strong> contro la sostanziale stabilità delle tradizionali.",
+            "subtitle": "Numero clienti delle principali banche italiane nell'ultimo anno disponibile, con la <strong>variazione percentuale rispetto a 5 anni prima</strong>. Le tradizionali hanno parchi clienti strutturalmente stabili; le fintech (<strong>Revolut</strong>, <strong>HYPE</strong>) crescono di ordini di grandezza.",
             "chart_html": chart_banks(banks_data),
             "source_html": 'Fonte: bilanci annuali e comunicati ufficiali · aggiornamento annuale (primavera, manuale)',
         },

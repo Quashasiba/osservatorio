@@ -52,21 +52,27 @@ FONT_FAMILY = "Geist, system-ui, sans-serif"
 def common_layout() -> dict:
     """Layout Plotly base condiviso da tutti i grafici.
 
-    Il titolo del grafico NON è impostato qui: usiamo l'h2 della sezione HTML
-    come titolo (più leggibile, e su mobile non occupa spazio prezioso sopra
-    al chart). La legenda è sotto al grafico per lo stesso motivo.
+    Margini generosi per dare respiro alle tick labels — `automargin=True`
+    su ogni asse permette poi a Plotly di espandere se necessario (mai
+    sotto questi minimi).
     """
     return dict(
         paper_bgcolor=COLOR_BG,
         plot_bgcolor=COLOR_BG,
         font=dict(family=FONT_FAMILY, color=COLOR_FG, size=12),
-        margin=dict(l=48, r=48, t=60, b=72),  # top maggiore per range buttons
+        margin=dict(l=64, r=24, t=24, b=60),
         hovermode="x unified",
-        xaxis=dict(showgrid=False, linecolor=COLOR_GRID, automargin=True),
-        yaxis=dict(gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True),
+        xaxis=dict(
+            showgrid=False, linecolor=COLOR_GRID, automargin=True,
+            tickfont=dict(size=11), ticks="outside", ticklen=4, tickcolor=COLOR_GRID,
+        ),
+        yaxis=dict(
+            gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True,
+            tickfont=dict(size=11),
+        ),
         legend=dict(
             orientation="h",
-            yanchor="top", y=-0.18,
+            yanchor="top", y=-0.22,
             xanchor="center", x=0.5,
             font=dict(size=12),
         ),
@@ -104,13 +110,13 @@ def rangeselector(buttons: list) -> dict:
 
 def chart_bev(data: dict) -> str:
     from datetime import timedelta
-    # Mostra SEMPRE solo gli ultimi 24 mesi
+    # Ultimi 24 mesi: due cicli annuali completi, comparabili stagione-stagione.
     obs = data["observations"][-24:]
     periods = [datetime.strptime(o["period"], "%Y-%m").replace(day=15) for o in obs]
     regs = [o["registrations"] for o in obs]
     shares = [o.get("market_share_pct") for o in obs]
 
-    BAR_WIDTH_MS = 2.0e9  # ~23 giorni
+    BAR_WIDTH_MS = 2.0e9  # ~23 giorni — larghezza barra per dato mensile
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -129,15 +135,23 @@ def chart_bev(data: dict) -> str:
         hovertemplate="<b>%{x|%b %Y}</b><br>%{y}%% market share<extra></extra>",
     ))
     layout = common_layout()
-    layout["margin"] = dict(l=60, r=60, t=30, b=50)
-    # Range esplicito = primo e ultimo dato visualizzato, con padding mezza-barra
+    # Doppio asse: serve margine destro più ampio per le tick % della y2
+    layout["margin"] = dict(l=64, r=56, t=24, b=70)
+    # Range = primo bordo barra → ultimo bordo barra, niente spazio extra
     layout["xaxis"] = dict(
-        type="date", showgrid=False, linecolor=COLOR_GRID,
-        range=[periods[0] - timedelta(days=25), periods[-1] + timedelta(days=25)],
+        type="date", showgrid=False, linecolor=COLOR_GRID, automargin=True,
+        tickfont=dict(size=11), ticks="outside", ticklen=4, tickcolor=COLOR_GRID,
+        tickformat="%b<br>%Y", dtick="M3",  # 1 tick/trim. su 24 mesi = 8 etichette
+        range=[periods[0] - timedelta(days=18), periods[-1] + timedelta(days=18)],
     )
-    layout["yaxis"] = dict(title="", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True)
-    layout["yaxis2"] = dict(title="", overlaying="y", side="right", showgrid=False,
-                           ticksuffix="%", automargin=True)
+    layout["yaxis"] = dict(
+        title="", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True,
+        tickfont=dict(size=11), rangemode="tozero",
+    )
+    layout["yaxis2"] = dict(
+        title="", overlaying="y", side="right", showgrid=False,
+        ticksuffix="%", automargin=True, tickfont=dict(size=11), rangemode="tozero",
+    )
     fig.update_layout(**layout)
 
     return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-bev",
@@ -145,7 +159,8 @@ def chart_bev(data: dict) -> str:
 
 
 def chart_payments(data: dict) -> str:
-    # Mostra SEMPRE solo gli ultimi 10 anni
+    from datetime import timedelta
+    # Ultimi 10 anni (è cadenza annuale, non c'è "ultimi 12 mesi" possibile)
     obs = data["observations"][-10:]
     years_dt = [datetime(o["year"], 1, 1) for o in obs]
     cashless = [o["cashless_pct"] for o in obs]
@@ -169,20 +184,18 @@ def chart_payments(data: dict) -> str:
         hovertemplate="<b>%{x|%Y}</b><br>Contante: %{y}%% dei consumi<extra></extra>",
     ))
     layout = common_layout()
-    layout["margin"] = dict(l=60, r=60, t=30, b=50)
-    # Range esplicito = dal 6 mesi prima del primo punto al 31 dicembre dell'ultimo anno
-    first_year = years_dt[0].year
-    last_year = years_dt[-1].year
+    layout["margin"] = dict(l=64, r=24, t=24, b=70)
+    # Padding x simmetrico ridotto: 3 mesi per lato, no spazio bianco a dx
     layout["xaxis"] = dict(
-        type="date", showgrid=False, linecolor=COLOR_GRID,
-        tickformat="%Y",
-        range=[
-            datetime(first_year - 1, 1, 1),     # 1 anno intero di padding a sx
-            datetime(last_year, 12, 31),         # fino al 31 dic ultimo anno (no 2026)
-        ],
+        type="date", showgrid=False, linecolor=COLOR_GRID, automargin=True,
+        tickfont=dict(size=11), ticks="outside", ticklen=4, tickcolor=COLOR_GRID,
+        tickformat="%Y", dtick="M12",
+        range=[years_dt[0] - timedelta(days=90), years_dt[-1] + timedelta(days=90)],
     )
-    layout["yaxis"] = dict(title="", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID,
-                          automargin=True, ticksuffix="%", range=[0, 70])
+    layout["yaxis"] = dict(
+        title="", gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True,
+        tickfont=dict(size=11), ticksuffix="%", range=[0, 75],
+    )
     fig.update_layout(**layout)
 
     return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-payments",
@@ -244,99 +257,19 @@ def chart_mobile(data: dict) -> str:
     layout["xaxis"] = dict(
         showgrid=False, automargin=True,
         tickfont=dict(size=12),
+        ticks="outside", ticklen=4, tickcolor=COLOR_GRID,
     )
+    # range y allargato del 45%: spazio per le 2 righe di label "outside" senza clip
     layout["yaxis"] = dict(
         showgrid=True, gridcolor=COLOR_GRID,
-        ticksuffix="%", range=[0, max(values) * 1.30],  # spazio per label sopra
-        automargin=True,
+        ticksuffix="%", range=[0, max(values) * 1.45],
+        automargin=True, tickfont=dict(size=11),
     )
     layout["showlegend"] = False
-    layout["margin"] = dict(l=40, r=20, t=40, b=40)
+    layout["margin"] = dict(l=56, r=24, t=32, b=56)
     fig.update_layout(**layout)
 
     return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-mobile",
-                       config=chart_config(static=True))
-
-
-def chart_banks(data: dict) -> str:
-    """Bar chart orizzontale: snapshot ultimo anno disponibile + delta % vs primo anno.
-
-    Pattern stilistico simile a chart_mobile (operatori), ma orizzontale perché
-    i nomi delle banche sono lunghi e meritano spazio a sinistra.
-    """
-    # Mostra SEMPRE solo gli ultimi 10 anni di dati nel JSON, ma il delta
-    # si calcola SOLO rispetto all'anno precedente (snapshot anno su anno).
-    obs = data["observations"][-10:]
-    banks = data["banks"]
-    # Confronto a 5 anni: mostra meglio le dinamiche per banche tradizionali stabili.
-    # Se la serie ha meno di 6 osservazioni, usiamo la più vecchia disponibile.
-    prev_obs = obs[-6] if len(obs) >= 6 else obs[0]
-    last_obs = obs[-1]
-    prev_year = prev_obs["year"]
-    last_year = last_obs["year"]
-
-    rows = []
-    for bank in banks:
-        name = bank["name"]
-        v_now = last_obs.get(name)
-        v_prev = prev_obs.get(name)
-        if v_now is None or v_prev is None or v_prev == 0:
-            continue
-        delta_pct = (v_now - v_prev) / v_prev * 100
-        rows.append({
-            "name": name, "color": bank["color"],
-            "value": v_now, "delta_pct": delta_pct,
-        })
-    # Ordina per dimensione decrescente. Plotly bar orizzontale disegna
-    # dal basso verso l'alto, quindi inverto per avere il più grande in cima
-    rows.sort(key=lambda r: r["value"], reverse=True)
-    rows = rows[::-1]
-
-    names = [r["name"] for r in rows]
-    values = [r["value"] for r in rows]
-    colors = [r["color"] for r in rows]
-
-    # Label fuori barra: "13.6M  ▲ +23%"  /  "0.05M → 4.0M  ▲ +7.9k%"
-    def fmt_delta(d: float) -> str:
-        if abs(d) >= 1000:
-            return f"+{d/1000:.1f}k%" if d > 0 else f"-{abs(d)/1000:.1f}k%"
-        return f"{d:+.0f}%"
-
-    labels = []
-    for r in rows:
-        arrow = "▲" if r["delta_pct"] >= 0 else "▼"
-        labels.append(f"<b>{r['value']:.1f}M</b>   {arrow} {fmt_delta(r['delta_pct'])}")
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=values, y=names,
-        orientation="h",
-        marker_color=colors,
-        text=labels,
-        textposition="outside",
-        textfont=dict(size=12),
-        cliponaxis=False,
-        hovertemplate=(
-            "<b>%{y}</b><br>"
-            f"Clienti {last_year}: %{{x}}M<br>"
-            f"Variazione dal {prev_year}: %{{customdata}}<extra></extra>"
-        ),
-        customdata=[fmt_delta(r["delta_pct"]) for r in rows],
-    ))
-
-    layout = common_layout()
-    layout["margin"] = dict(l=130, r=140, t=20, b=30)  # spazio nomi sx + label dx
-    layout["xaxis"] = dict(
-        showgrid=False, showticklabels=False, zeroline=False,
-        range=[0, max(values) * 1.45],  # spazio extra per le label "outside"
-    )
-    layout["yaxis"] = dict(
-        showgrid=False, automargin=True,
-        tickfont=dict(size=13),
-    )
-    layout["showlegend"] = False
-    fig.update_layout(**layout)
-    return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-banks",
                        config=chart_config(static=True))
 
 
@@ -344,35 +277,39 @@ def chart_desertification(data: dict) -> str:
     """Bar chart annuale del numero di sportelli bancari in Italia.
 
     Storia: la rete bancaria fisica si è quasi dimezzata in 15 anni.
+    Mostra tutto lo storico disponibile nel JSON (dal 2010).
     """
-    obs = data["observations"][-10:]
-    years_dt = [datetime(o["year"], 1, 1) for o in obs]
+    from datetime import timedelta
+    obs = data["observations"]
+    # Centro barra a metà anno per allineare label "%Y" e padding x
+    years_dt = [datetime(o["year"], 7, 1) for o in obs]
     sportelli = [o["sportelli"] for o in obs]
 
-    # Bar chart con barre marrone-bruno (evoca "ritirata" / colore terra)
     COLOR_DESERT = "#8a5a3f"
+    # Barra = ~10 mesi di ms; padding range x = mezza-barra → fila perfetta
+    BAR_WIDTH_MS = 2.6e10  # ~10 mesi
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
         x=years_dt, y=sportelli, name="Sportelli",
         marker_color=COLOR_DESERT,
-        width=2.0e10,  # barre larghe (anni interi, non mesi → width molto maggiore)
+        width=BAR_WIDTH_MS,
         cliponaxis=False,
         hovertemplate="<b>%{x|%Y}</b><br>%{y:,} sportelli<extra></extra>",
     ))
     layout = common_layout()
-    layout["margin"] = dict(l=60, r=60, t=30, b=50)
+    layout["margin"] = dict(l=64, r=24, t=24, b=56)
     layout["showlegend"] = False
-    first_year = years_dt[0].year
-    last_year = years_dt[-1].year
+    # Padding mezza-barra (~5 mesi) per evitare clipping ma niente bianco extra
     layout["xaxis"] = dict(
-        type="date", showgrid=False, linecolor=COLOR_GRID,
-        tickformat="%Y",
-        range=[datetime(first_year - 1, 1, 1), datetime(last_year, 12, 31)],
+        type="date", showgrid=False, linecolor=COLOR_GRID, automargin=True,
+        tickfont=dict(size=11), ticks="outside", ticklen=4, tickcolor=COLOR_GRID,
+        tickformat="%Y", dtick="M24",
+        range=[years_dt[0] - timedelta(days=160), years_dt[-1] + timedelta(days=160)],
     )
     layout["yaxis"] = dict(
         gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True,
-        rangemode="tozero",
+        tickfont=dict(size=11), rangemode="tozero", separatethousands=True,
     )
     fig.update_layout(**layout)
     return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-desertification",
@@ -418,14 +355,17 @@ def chart_energy_mix(data: dict) -> str:
             hovertemplate=f"<b>{label}</b><br>%{{x|%b %Y}}: %{{y:.1f}} TWh<extra></extra>",
         ))
     layout = common_layout()
-    layout["margin"] = dict(l=60, r=60, t=30, b=50)
+    layout["margin"] = dict(l=64, r=24, t=24, b=70)
+    # Niente padding extra: la prima/ultima data coincidono col bordo
     layout["xaxis"] = dict(
-        type="date", showgrid=False, linecolor=COLOR_GRID,
-        range=[periods[0] - timedelta(days=20), periods[-1] + timedelta(days=20)],
+        type="date", showgrid=False, linecolor=COLOR_GRID, automargin=True,
+        tickfont=dict(size=11), ticks="outside", ticklen=4, tickcolor=COLOR_GRID,
+        tickformat="%b<br>%Y", dtick="M3",
+        range=[periods[0], periods[-1]],
     )
     layout["yaxis"] = dict(
         gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True,
-        ticksuffix=" TWh", rangemode="tozero",
+        tickfont=dict(size=11), ticksuffix=" TWh", rangemode="tozero",
     )
     layout["hovermode"] = "x unified"
     fig.update_layout(**layout)
@@ -473,16 +413,17 @@ def chart_auto_milano(data: dict) -> str:
         ))
 
     layout = common_layout()
-    layout["margin"] = dict(l=60, r=60, t=30, b=50)
+    layout["margin"] = dict(l=64, r=24, t=24, b=70)
+    # Niente padding: primo e ultimo punto coincidono col bordo del plot
     layout["xaxis"] = dict(
-        type="date", showgrid=False, linecolor=COLOR_GRID,
-        tickformat="%Y",
-        range=[_dt(first_year, 1, 1) - timedelta(days=120),
-               _dt(last_year, 12, 31) + timedelta(days=60)],
+        type="date", showgrid=False, linecolor=COLOR_GRID, automargin=True,
+        tickfont=dict(size=11), ticks="outside", ticklen=4, tickcolor=COLOR_GRID,
+        tickformat="%Y", dtick="M12",
+        range=[years_dt[0], years_dt[-1]],
     )
     layout["yaxis"] = dict(
         gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True,
-        ticksuffix="k", rangemode="tozero",
+        tickfont=dict(size=11), ticksuffix="k", rangemode="tozero",
     )
     layout["hovermode"] = "x unified"
     fig.update_layout(**layout)
@@ -502,7 +443,8 @@ def chart_inquinamento(data: dict) -> str:
         return ('<div style="padding:60px 20px;text-align:center;color:#8a7a55;'
                 'font-style:italic;">Nessun dato disponibile.</div>')
 
-    obs = obs[-24:]
+    # Mostra tutto lo storico disponibile: il dataset Socrata `nicp-bhqi`
+    # parte da gennaio 2024.
     periods = [datetime.strptime(o["period"], "%Y-%m").replace(day=15) for o in obs]
     values = [o["pm25_media"] for o in obs]
 
@@ -510,31 +452,34 @@ def chart_inquinamento(data: dict) -> str:
     THRESHOLD_OMS = data.get("threshold_oms_annuale", 15)
 
     fig = go.Figure()
-    # Soglia OMS come banda di riferimento + linea
+    # Soglia OMS come banda + linea. Annotation in alto-sinistra (sopra la
+    # banda verde): non ruba spazio orizzontale al chart.
     fig.add_hrect(y0=0, y1=THRESHOLD_OMS, fillcolor="#7d9b5a", opacity=0.08, line_width=0)
     fig.add_hline(y=THRESHOLD_OMS, line_dash="dash", line_color="#5a7d3f", line_width=1.5,
-                  annotation_text=f"Limite OMS (annuale): {THRESHOLD_OMS} µg/m³",
-                  annotation_position="right",
-                  annotation_font=dict(size=11, color="#5a7d3f"))
-    # Linea principale
+                  annotation_text=f"Limite OMS annuale: {THRESHOLD_OMS} µg/m³",
+                  annotation_position="top left",
+                  annotation_font=dict(size=10.5, color="#5a7d3f"),
+                  annotation_xshift=4, annotation_yshift=2)
     fig.add_trace(go.Scatter(
         x=periods, y=values, name="PM2.5 medio",
         mode="lines+markers",
         line=dict(color=COLOR_PM, width=2.5),
-        marker=dict(size=7, color=COLOR_PM, line=dict(color=COLOR_BG, width=1.5)),
+        marker=dict(size=6, color=COLOR_PM, line=dict(color=COLOR_BG, width=1.5)),
         cliponaxis=False,
         hovertemplate="<b>%{x|%b %Y}</b><br>PM2.5: <b>%{y:.1f} µg/m³</b><extra></extra>",
     ))
 
     layout = common_layout()
-    layout["margin"] = dict(l=60, r=160, t=30, b=50)  # margine destro extra per annotation
+    layout["margin"] = dict(l=64, r=24, t=24, b=70)
     layout["xaxis"] = dict(
-        type="date", showgrid=False, linecolor=COLOR_GRID,
-        range=[periods[0] - timedelta(days=20), periods[-1] + timedelta(days=20)],
+        type="date", showgrid=False, linecolor=COLOR_GRID, automargin=True,
+        tickfont=dict(size=11), ticks="outside", ticklen=4, tickcolor=COLOR_GRID,
+        tickformat="%b<br>%Y", dtick="M3",  # 28 mesi → 1 tick/trim. = ~10 etichette
+        range=[periods[0] - timedelta(days=12), periods[-1] + timedelta(days=12)],
     )
     layout["yaxis"] = dict(
         gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True,
-        ticksuffix=" µg/m³", rangemode="tozero",
+        tickfont=dict(size=11), ticksuffix=" µg/m³", rangemode="tozero",
     )
     layout["showlegend"] = False
     fig.update_layout(**layout)
@@ -872,23 +817,6 @@ def headline_energy(d: dict) -> str:
     return headline_html(_fmt_dec(total), " TWh", f"produzione elettrica nazionale di <b>{period}</b>.")
 
 
-def headline_banks(d: dict) -> str:
-    obs = d["observations"]
-    banks = d["banks"]
-    last = obs[-1]
-    leader = max(banks, key=lambda b: last.get(b["name"], 0))
-    leader_val = last[leader["name"]]
-    revolut_first = obs[0].get("Revolut", 0) or 0.01
-    revolut_last = last.get("Revolut", 0)
-    rev_growth = (revolut_last - revolut_first) / revolut_first * 100
-    return headline_html(
-        _fmt_dec(leader_val), " M clienti",
-        f"<b>{leader['name']}</b> capofila nel <b>{last['year']}</b>. "
-        f"Sull'altro fronte, Revolut passa da {_fmt_dec(revolut_first, 2)}M ({obs[0]['year']}) "
-        f"a {_fmt_dec(revolut_last)}M ({last['year']}): {_delta_span(rev_growth)}."
-    )
-
-
 # ---------- Tabelle dati per topic (opzionale, ultimi 12 valori) ----------
 
 def table_bev(d: dict) -> str:
@@ -906,7 +834,7 @@ def table_payments(d: dict) -> str:
 
 
 def table_desert(d: dict) -> str:
-    obs = d["observations"][-10:]
+    obs = d["observations"]
     rows = [[str(o["year"]), _fmt_int(o["sportelli"])] for o in reversed(obs)]
     return table_html(["Anno", "Sportelli"], rows)
 
@@ -939,8 +867,6 @@ def main() -> int:
         pay_data = json.load(f)
     with open(DATA_DIR / "operatori_mobile.json", "r", encoding="utf-8") as f:
         mob_data = json.load(f)
-    with open(DATA_DIR / "banche_italia.json", "r", encoding="utf-8") as f:
-        banks_data = json.load(f)
     with open(DATA_DIR / "desertificazione_bancaria.json", "r", encoding="utf-8") as f:
         desert_data = json.load(f)
     with open(DATA_DIR / "mix_energetico.json", "r", encoding="utf-8") as f:
@@ -1069,20 +995,6 @@ def main() -> int:
             "citation_html": citation_html(
                 '<a href="https://www.aci.it/laci/studi-e-ricerche/dati-e-statistiche/open-data.html" target="_blank" rel="noopener">ACI Autoritratto</a>',
                 "aggiornamento annuale (autunno)", str(auto_data["observations"][-1]["year"]),
-            ),
-        },
-        {
-            "key": "banks",
-            "group": "societa",
-            "category": "Finanza · attori",
-            "updated_at": banks_data.get("updated_at", ""),
-            "title": "Banche e fintech",
-            "subtitle": "Numero clienti delle principali banche italiane nell'ultimo anno disponibile, con la variazione rispetto a cinque anni prima.",
-            "chart_html": chart_banks(banks_data),
-            "headline_html": headline_banks(banks_data),
-            "citation_html": citation_html(
-                "bilanci annuali e comunicati ufficiali",
-                "aggiornamento annuale (manuale)", str(banks_data["observations"][-1]["year"]),
             ),
         },
     ]

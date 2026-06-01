@@ -604,12 +604,18 @@ def _delta_span(delta_pct: float, suffix: str = "") -> str:
     return f'<span class="neg">{delta_pct:.0f}%{suffix}</span>'
 
 
-# Quanti giorni dopo l'updated_at il badge "AGGIORNATO" resta visibile.
-FRESH_WINDOW_DAYS = 7
+# Per quanti giorni il badge "AGGIORNATO" resta visibile dopo l'updated_at.
+# 3 = visibile il giorno dell'aggiornamento e i due successivi, poi sparisce.
+FRESH_WINDOW_DAYS = 3
 
 
 def is_fresh(updated_at: str) -> bool:
-    """True se updated_at è entro FRESH_WINDOW_DAYS dalla data odierna."""
+    """True se il dato ha meno di FRESH_WINDOW_DAYS giorni.
+
+    Il confronto è contro la data odierna, ricalcolato a ogni build: il
+    workflow rigenera il sito ogni giorno, quindi il badge sparisce da solo
+    una volta superata la finestra, senza intervento manuale.
+    """
     if not updated_at:
         return False
     try:
@@ -617,7 +623,7 @@ def is_fresh(updated_at: str) -> bool:
     except ValueError:
         return False
     delta = (date.today() - ts).days
-    return 0 <= delta <= FRESH_WINDOW_DAYS
+    return 0 <= delta < FRESH_WINDOW_DAYS
 
 
 def headline_html(kpi: str, unit: str, context: str) -> str:

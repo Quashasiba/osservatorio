@@ -1,0 +1,46 @@
+name: Rigenera sito (badge freshness)
+
+# Il workflow "Aggiorna dati mensili" gira solo ~1 volta al mese, ma il badge
+# "Aggiornato" deve sparire 3 giorni dopo l'updated_at del dato (vedi
+# FRESH_WINDOW_DAYS in build_site.py). La freschezza è calcolata al build,
+# quindi serve un build giornaliero che rigeneri il sito SENZA riscaricare i
+# dati: ricalcola is_fresh contro la data odierna e committa se l'HTML cambia.
+
+on:
+  schedule:
+    - cron: "0 5 * * *" # ogni giorno alle 05:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Installa dipendenze
+        run: pip install -r requirements.txt
+
+      - name: Genera sito (no fetch)
+        run: python scripts/build_site.py
+
+      - name: Commit e push se l'HTML è cambiato
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/
+          if git diff --staged --quiet; then
+            echo "Nessuna modifica al sito."
+          else
+            git commit -m "chore: rigenerazione sito $(date -u +'%Y-%m-%d')"
+            git push
+          fi

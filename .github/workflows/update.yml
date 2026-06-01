@@ -70,10 +70,6 @@ jobs:
         run: python scripts/fetch_auto_milano.py
         continue-on-error: true
 
-      - name: Fetch dati PM2.5 Pianura Padana (ARPA Lombardia)
-        run: python scripts/fetch_inquinamento.py
-        continue-on-error: true
-
       - name: Genera sito
         run: python scripts/build_site.py
 

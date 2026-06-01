@@ -431,62 +431,6 @@ def chart_auto_milano(data: dict) -> str:
                        config=chart_config(static=True))
 
 
-def chart_inquinamento(data: dict) -> str:
-    """Line chart mensile della media PM2.5 in Pianura Padana lombarda.
-
-    Mostra media delle 6 stazioni di background urbano, con la soglia OMS
-    annuale (15 µg/m³) come riferimento di lettura.
-    """
-    from datetime import timedelta
-    obs = data.get("observations", [])
-    if not obs:
-        return ('<div style="padding:60px 20px;text-align:center;color:#8a7a55;'
-                'font-style:italic;">Nessun dato disponibile.</div>')
-
-    # Mostra tutto lo storico disponibile: il dataset Socrata `nicp-bhqi`
-    # parte da gennaio 2024.
-    periods = [datetime.strptime(o["period"], "%Y-%m").replace(day=15) for o in obs]
-    values = [o["pm25_media"] for o in obs]
-
-    COLOR_PM = "#a13e2a"   # terracotta scuro - "rosso preoccupante"
-    THRESHOLD_OMS = data.get("threshold_oms_annuale", 15)
-
-    fig = go.Figure()
-    # Soglia OMS come banda + linea. Annotation in alto-sinistra (sopra la
-    # banda verde): non ruba spazio orizzontale al chart.
-    fig.add_hrect(y0=0, y1=THRESHOLD_OMS, fillcolor="#7d9b5a", opacity=0.08, line_width=0)
-    fig.add_hline(y=THRESHOLD_OMS, line_dash="dash", line_color="#5a7d3f", line_width=1.5,
-                  annotation_text=f"Limite OMS annuale: {THRESHOLD_OMS} µg/m³",
-                  annotation_position="top left",
-                  annotation_font=dict(size=10.5, color="#5a7d3f"),
-                  annotation_xshift=4, annotation_yshift=2)
-    fig.add_trace(go.Scatter(
-        x=periods, y=values, name="PM2.5 medio",
-        mode="lines+markers",
-        line=dict(color=COLOR_PM, width=2.5),
-        marker=dict(size=6, color=COLOR_PM, line=dict(color=COLOR_BG, width=1.5)),
-        cliponaxis=False,
-        hovertemplate="<b>%{x|%b %Y}</b><br>PM2.5: <b>%{y:.1f} µg/m³</b><extra></extra>",
-    ))
-
-    layout = common_layout()
-    layout["margin"] = dict(l=64, r=24, t=24, b=70)
-    layout["xaxis"] = dict(
-        type="date", showgrid=False, linecolor=COLOR_GRID, automargin=True,
-        tickfont=dict(size=11), ticks="outside", ticklen=4, tickcolor=COLOR_GRID,
-        tickformat="%b<br>%Y", dtick="M3",  # 28 mesi → 1 tick/trim. = ~10 etichette
-        range=[periods[0] - timedelta(days=12), periods[-1] + timedelta(days=12)],
-    )
-    layout["yaxis"] = dict(
-        gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True,
-        tickfont=dict(size=11), ticksuffix=" µg/m³", rangemode="tozero",
-    )
-    layout["showlegend"] = False
-    fig.update_layout(**layout)
-    return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-inquinamento",
-                       config=chart_config(static=True))
-
-
 TEMPLATE = """<!doctype html>
 <html lang="it">
 <head>
@@ -606,6 +550,7 @@ TEMPLATE = """<!doctype html>
       .chart-wrap { margin: 0 -16px; padding: 0; min-height: 360px; }
       .chart-wrap > div { min-height: 360px; }
       .citation { flex-direction: column; gap: 6px; }
+      .badge-fresh { margin-left: 6px; font-size: 9px; padding: 3px 6px 2px; transform: translateY(-2px); }
     }
   </style>
 </head>
@@ -776,23 +721,6 @@ def headline_payments(d: dict) -> str:
     )
 
 
-def headline_pollution(d: dict) -> str:
-    obs = d["observations"]
-    last = obs[-1]
-    period = _fmt_period_it(last["period"])
-    threshold = d.get("threshold_oms_annuale", 15)
-    value = last["pm25_media"]
-    if value <= threshold:
-        ratio_txt = f'<span class="pos">sotto la soglia annuale OMS</span> ({threshold} µg/m³)'
-    else:
-        x = value / threshold
-        ratio_txt = f'<span class="neg">{_fmt_dec(x)}× la soglia annuale OMS</span> ({threshold} µg/m³)'
-    return headline_html(
-        _fmt_dec(value), "µg/m³",
-        f"media PM2.5 di <b>{period}</b> su {last.get('stazioni_n', 6)} città lombarde — {ratio_txt}."
-    )
-
-
 def headline_auto_milano(d: dict) -> str:
     obs = d["observations"]
     last = obs[-1]
@@ -840,12 +768,6 @@ def table_desert(d: dict) -> str:
     return table_html(["Anno", "Sportelli"], rows)
 
 
-def table_pollution(d: dict) -> str:
-    obs = d["observations"][-12:]
-    rows = [[_fmt_period_it(o["period"]), f"{_fmt_dec(o['pm25_media'])} µg/m³"] for o in reversed(obs)]
-    return table_html(["Mese", "PM2.5 media 6 città"], rows)
-
-
 def render_topic(t: dict, index: int) -> str:
     """Renderizza una singola sezione topic con headline, citation, chart, tabella opzionale."""
     table = f"\n        {t['table_html']}" if t.get("table_html") else ""
@@ -876,8 +798,6 @@ def main() -> int:
         energy_data = json.load(f)
     with open(DATA_DIR / "auto_milano.json", "r", encoding="utf-8") as f:
         auto_data = json.load(f)
-    with open(DATA_DIR / "inquinamento_padana.json", "r", encoding="utf-8") as f:
-        pollution_data = json.load(f)
 
     # Ultimo periodo "umano" per ogni dataset (per la citation block).
     def last_period_of(obs_list, key="period"):
@@ -970,21 +890,6 @@ def main() -> int:
                 '<a href="https://transparency.entsoe.eu/" target="_blank" rel="noopener">ENTSO-E Transparency Platform</a> (dati Terna)',
                 "aggiornamento mensile", last_period_of(energy_data.get("observations", [])),
             ),
-        },
-        {
-            "key": "pollution",
-            "group": "transizione",
-            "category": "Ambiente · aria",
-            "updated_at": pollution_data.get("updated_at", ""),
-            "title": "PM2.5 in Pianura Padana",
-            "subtitle": "Media mensile di particolato fine PM2.5 nelle stazioni di background urbano di sei città lombarde (Milano, Brescia, Bergamo, Cremona, Pavia, Mantova).",
-            "chart_html": chart_inquinamento(pollution_data),
-            "headline_html": headline_pollution(pollution_data),
-            "citation_html": citation_html(
-                '<a href="https://www.dati.lombardia.it/Ambiente/Dati-sensori-aria/nicp-bhqi" target="_blank" rel="noopener">ARPA Lombardia</a> via dati.lombardia.it',
-                "aggiornamento mensile", last_period_of(pollution_data["observations"]),
-            ),
-            "table_html": table_pollution(pollution_data),
         },
         {
             "key": "auto_milano",

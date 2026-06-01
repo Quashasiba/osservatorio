@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Osservatorio Italia — 7 indicatori che raccontano il paese</title>
-  <meta name="description" content="Monitoraggio automatico di 7 indicatori italiani: auto elettriche, pagamenti, telecom, banche, energia, aria. Aggiornato di continuo da fonti pubbliche.">
+  <title>Osservatorio Italia — 6 indicatori che raccontano il paese</title>
+  <meta name="description" content="Monitoraggio automatico di 6 indicatori italiani: auto elettriche, pagamenti, telecom, banche, energia, aria. Aggiornato di continuo da fonti pubbliche.">
   <meta property="og:title" content="Osservatorio Italia">
-  <meta property="og:description" content="7 indicatori italiani aggiornati di continuo da fonti pubbliche.">
+  <meta property="og:description" content="6 indicatori italiani aggiornati di continuo da fonti pubbliche.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://github.com/Pieew/osservatorio">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -117,6 +117,7 @@
       .chart-wrap { margin: 0 -16px; padding: 0; min-height: 360px; }
       .chart-wrap > div { min-height: 360px; }
       .citation { flex-direction: column; gap: 6px; }
+      .badge-fresh { margin-left: 6px; font-size: 9px; padding: 3px 6px 2px; transform: translateY(-2px); }
     }
   </style>
 </head>
@@ -125,30 +126,18 @@
     <header class="hero">
       <p class="eyebrow">Osservatorio Italia</p>
       <h1>Numeri pubblici <em>per leggere il paese</em></h1>
-      <p class="lede">7 indicatori raccolti automaticamente da fonti pubbliche — UNRAE, AGCOM, Banca d'Italia, ARPA, ENTSO-E, ACI — per seguire come cambiano mobilità, consumi, finanza, energia e ambiente in Italia.</p>
+      <p class="lede">6 indicatori raccolti automaticamente da fonti pubbliche — UNRAE, AGCOM, Banca d'Italia, ARPA, ENTSO-E, ACI — per seguire come cambiano mobilità, consumi, finanza, energia e ambiente in Italia.</p>
       <div class="meta">
-        <span>Ultimo dato disponibile: <strong>2026-05-25</strong></span>
-        <span>Topic monitorati: <strong>7</strong></span>
+        <span>Ultimo dato disponibile: <strong>2026-05-23</strong></span>
+        <span>Topic monitorati: <strong>6</strong></span>
         <span>Cadenze: <strong>mensile, trimestrale, annuale</strong></span>
       </div>
     </header>
 
     <main>
-        <section class="card" id="pollution" data-group="transizione">
-      <p class="cat">Ambiente · aria</p>
-      <h2>PM2.5 in Pianura Padana <span class="badge-fresh" title="Aggiornato negli ultimi giorni">Aggiornato</span></h2>
-      <p class="sub">Media mensile di particolato fine PM2.5 nelle stazioni di background urbano di sei città lombarde (Milano, Brescia, Bergamo, Cremona, Pavia, Mantova).</p>
-      <div class="headline"><div class="kpi">13,7<span class="unit">µg/m³</span></div><div class="ctx">media PM2.5 di <b>aprile 2026</b> su 4 città lombarde — <span class="pos">sotto la soglia annuale OMS</span> (15 µg/m³).</div></div>
-      <div class="citation"><span class="cite-label">Fonte</span><span class="cite-body"><a href="https://www.dati.lombardia.it/Ambiente/Dati-sensori-aria/nicp-bhqi" target="_blank" rel="noopener">ARPA Lombardia</a> via dati.lombardia.it<span class="cite-meta">— aggiornamento mensile · ultimo dato: aprile 2026</span></span></div>
-      <div class="chart-wrap">
-        <div>                            <div id="chart-inquinamento" class="plotly-graph-div" style="height:100%; width:100%;"></div>            <script type="text/javascript">                                    window.PLOTLYENV=window.PLOTLYENV || {};                                    if (document.getElementById("chart-inquinamento")) {                    Plotly.newPlot(                        "chart-inquinamento",                        [{"cliponaxis":false,"hovertemplate":"\u003cb\u003e%{x|%b %Y}\u003c\u002fb\u003e\u003cbr\u003ePM2.5: \u003cb\u003e%{y:.1f} \u00b5g\u002fm\u00b3\u003c\u002fb\u003e\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"#a13e2a","width":2.5},"marker":{"color":"#a13e2a","line":{"color":"#faf8f3","width":1.5},"size":6},"mode":"lines+markers","name":"PM2.5 medio","x":["2024-01-15T00:00:00","2024-02-15T00:00:00","2024-03-15T00:00:00","2024-04-15T00:00:00","2024-05-15T00:00:00","2024-06-15T00:00:00","2024-07-15T00:00:00","2024-08-15T00:00:00","2024-09-15T00:00:00","2024-10-15T00:00:00","2024-11-15T00:00:00","2024-12-15T00:00:00","2025-01-15T00:00:00","2025-02-15T00:00:00","2025-03-15T00:00:00","2025-04-15T00:00:00","2025-05-15T00:00:00","2025-06-15T00:00:00","2025-07-15T00:00:00","2025-08-15T00:00:00","2025-09-15T00:00:00","2025-10-15T00:00:00","2025-11-15T00:00:00","2025-12-15T00:00:00","2026-01-15T00:00:00","2026-02-15T00:00:00","2026-03-15T00:00:00","2026-04-15T00:00:00"],"y":[34.3,40.7,16.7,11.5,8.0,10.6,11.1,13.2,9.0,12.2,28.7,31.5,29.2,35.8,18.8,12.2,9.4,14.2,8.0,11.2,10.8,19.4,24.3,27.0,34.4,21.4,22.7,13.7],"type":"scatter"}],                        {"template":{"data":{"scatter":[{"type":"scatter"}]}},"shapes":[{"fillcolor":"#7d9b5a","line":{"width":0},"opacity":0.08,"type":"rect","x0":0,"x1":1,"xref":"x domain","y0":0,"y1":15,"yref":"y"},{"line":{"color":"#5a7d3f","dash":"dash","width":1.5},"type":"line","x0":0,"x1":1,"xref":"x domain","y0":15,"y1":15,"yref":"y"}],"annotations":[{"font":{"color":"#5a7d3f","size":10.5},"showarrow":false,"text":"Limite OMS annuale: 15 \u00b5g\u002fm\u00b3","x":0,"xanchor":"left","xref":"x domain","xshift":4,"y":15,"yanchor":"bottom","yref":"y","yshift":2}],"font":{"family":"Geist, system-ui, sans-serif","color":"#1a1a1a","size":12},"margin":{"l":64,"r":24,"t":24,"b":70},"xaxis":{"tickfont":{"size":11},"type":"date","showgrid":false,"linecolor":"#e8e2d2","automargin":true,"ticks":"outside","ticklen":4,"tickcolor":"#e8e2d2","tickformat":"%b\u003cbr\u003e%Y","dtick":"M3","range":["2024-01-03T00:00:00","2026-04-27T00:00:00"]},"yaxis":{"tickfont":{"size":11},"gridcolor":"#e8e2d2","zerolinecolor":"#e8e2d2","automargin":true,"ticksuffix":" \u00b5g\u002fm\u00b3","rangemode":"tozero"},"legend":{"font":{"size":12},"orientation":"h","yanchor":"top","y":-0.22,"xanchor":"center","x":0.5},"paper_bgcolor":"#faf8f3","plot_bgcolor":"#faf8f3","hovermode":"x unified","showlegend":false},                        {"displayModeBar": false, "responsive": true, "scrollZoom": false, "doubleClick": false, "staticPlot": true}                    )                };                            </script>        </div>
-      </div>
-        <details class="data-table"><summary>Mostra i numeri</summary><table><thead><tr><th>Mese</th><th>PM2.5 media 6 città</th></tr></thead><tbody><tr><td>aprile 2026</td><td>13,7 µg/m³</td></tr><tr><td>marzo 2026</td><td>22,7 µg/m³</td></tr><tr><td>febbraio 2026</td><td>21,4 µg/m³</td></tr><tr><td>gennaio 2026</td><td>34,4 µg/m³</td></tr><tr><td>dicembre 2025</td><td>27,0 µg/m³</td></tr><tr><td>novembre 2025</td><td>24,3 µg/m³</td></tr><tr><td>ottobre 2025</td><td>19,4 µg/m³</td></tr><tr><td>settembre 2025</td><td>10,8 µg/m³</td></tr><tr><td>agosto 2025</td><td>11,2 µg/m³</td></tr><tr><td>luglio 2025</td><td>8,0 µg/m³</td></tr><tr><td>giugno 2025</td><td>14,2 µg/m³</td></tr><tr><td>maggio 2025</td><td>9,4 µg/m³</td></tr></tbody></table></details>
-    </section>
-
-    <section class="card" id="bev" data-group="transizione">
+        <section class="card" id="bev" data-group="transizione">
       <p class="cat">Mobilità · transizione</p>
-      <h2>Auto full electric immatricolate <span class="badge-fresh" title="Aggiornato negli ultimi giorni">Aggiornato</span></h2>
+      <h2>Auto full electric immatricolate</h2>
       <p class="sub">Nuove BEV registrate ogni mese in Italia. Barre: numero immatricolazioni; linea: quota di mercato sul totale del mese.</p>
       <div class="headline"><div class="kpi">13.238<span class="unit">BEV</span></div><div class="ctx"><b>aprile 2026</b> · <b>8,5%</b> di quota di mercato · <span class="pos">+98% YoY</span> sulle immatricolazioni</div></div>
       <div class="citation"><span class="cite-label">Fonte</span><span class="cite-body"><a href="https://unrae.it/notizie" target="_blank" rel="noopener">UNRAE</a><span class="cite-meta">— aggiornamento mensile · ultimo dato: aprile 2026</span></span></div>
@@ -160,7 +149,7 @@
 
     <section class="card" id="mobile" data-group="societa">
       <p class="cat">Telecom · concorrenza</p>
-      <h2>Operatori telefonici mobili <span class="badge-fresh" title="Aggiornato negli ultimi giorni">Aggiornato</span></h2>
+      <h2>Operatori telefonici mobili</h2>
       <p class="sub">Quota di mercato sulle SIM Human (escluse M2M/IoT) nell'ultimo trimestre disponibile, con variazione rispetto allo stesso trimestre dell'anno prima.</p>
       <div class="headline"><div class="kpi">25,1<span class="unit">%</span></div><div class="ctx"><b>Vodafone+Fastweb</b> resta il primo operatore SIM Human nel <b>Q4 2025</b>. Quattro operatori si dividono il mercato in fasce strette: 16–25%.</div></div>
       <div class="citation"><span class="cite-label">Fonte</span><span class="cite-body"><a href="https://www.agcom.it/comunicazione/comunicati-stampa" target="_blank" rel="noopener">AGCOM — Osservatorio sulle Comunicazioni</a><span class="cite-meta">— aggiornamento trimestrale · ultimo dato: Q4 2025</span></span></div>
@@ -171,7 +160,7 @@
 
     <section class="card" id="desert" data-group="societa">
       <p class="cat">Accesso · servizi</p>
-      <h2>Desertificazione bancaria <span class="badge-fresh" title="Aggiornato negli ultimi giorni">Aggiornato</span></h2>
+      <h2>Desertificazione bancaria</h2>
       <p class="sub">Numero totale di sportelli bancari aperti in Italia, a fine anno. Misura quanto la rete fisica si è ritirata dal picco del 2012.</p>
       <div class="headline"><div class="kpi">19.140</div><div class="ctx">sportelli aperti a fine <b>2025</b>, <span class="neg">-43%</span> dal picco di <b>2010</b> (33.700). <b>3.457 comuni</b> oggi sono senza sportello bancario.</div></div>
       <div class="citation"><span class="cite-label">Fonte</span><span class="cite-body"><a href="https://www.firstcisl.it/tag/osservatorio-desertificazione-bancaria/" target="_blank" rel="noopener">First CISL</a> (su dati Banca d'Italia / ISTAT)<span class="cite-meta">— aggiornamento annuale (fine gennaio) · ultimo dato: 2025</span></span></div>
@@ -217,7 +206,7 @@
     </main>
 
     <footer>
-      <span>Generato automaticamente · build 2026-05-25</span>
+      <span>Generato automaticamente · build 2026-06-01</span>
       <span>Codice e dati: <a href="https://github.com/Pieew/osservatorio" target="_blank" rel="noopener">github.com/Pieew/osservatorio</a></span>
     </footer>
   </div>

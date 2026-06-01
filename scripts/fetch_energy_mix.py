@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -38,7 +39,8 @@ DATA_FILE = ROOT / "data" / "mix_energetico.json"
 API_URL = "https://web-api.tp.entsoe.eu/api"
 ITALY_DOMAIN = "10YIT-GRTN-----B"
 USER_AGENT = "Mozilla/5.0 (compatible; OsservatorioBot/1.0; +github-actions)"
-TIMEOUT = 120
+TIMEOUT = 180
+MAX_RETRIES = 4   # un anno di dati orari è pesante: ENTSO-E va spesso in timeout
 
 # PSR_TYPE → categoria narrativa (vedi codici ENTSO-E)
 PSR_TO_CATEGORY = {
@@ -86,12 +88,25 @@ def fetch_year(year: int, token: str) -> dict[str, dict[str, float]]:
         "securityToken": token,
     }
     print(f"  → richiedo dati anno {year}…")
-    r = requests.get(API_URL, params=params,
-                     headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT)
-    if r.status_code != 200:
-        print(f"  ERRORE: API HTTP {r.status_code}: {r.text[:300]}", file=sys.stderr)
-        return {}
-    return parse_response(r.text)
+    last_err = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            r = requests.get(API_URL, params=params,
+                             headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT)
+        except requests.exceptions.RequestException as e:
+            last_err = e
+            wait = 5 * attempt
+            print(f"  timeout/errore di rete (tentativo {attempt}/{MAX_RETRIES}), "
+                  f"riprovo tra {wait}s…", file=sys.stderr)
+            time.sleep(wait)
+            continue
+        if r.status_code != 200:
+            print(f"  ERRORE: API HTTP {r.status_code}: {r.text[:300]}", file=sys.stderr)
+            return {}
+        return parse_response(r.text)
+    print(f"  ERRORE: anno {year} non scaricato dopo {MAX_RETRIES} tentativi: {last_err}",
+          file=sys.stderr)
+    return {}
 
 
 def parse_response(xml_text: str) -> dict[str, dict[str, float]]:

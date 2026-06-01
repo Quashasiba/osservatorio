@@ -1,7 +1,7 @@
 {
   "source": "ENTSO-E Transparency Platform - Actual Generation per Type (A75)",
   "note": "Mix di generazione elettrica in Italia, per fonte primaria, dati MENSILI. Valori in TWh. Aggregazione di dati orari forniti da ENTSO-E sulla base dei flussi dichiarati da Terna. Le categorie 'altre rinnovabili' (geotermia, biomasse, rifiuti) e 'altre fossili' (carbone, olio) sono aggregate per leggibilità. Il pompaggio è escluso (è accumulo, non generazione primaria). Aggiornamento mensile via ENTSO-E API.",
-  "updated_at": "",
+  "updated_at": "2026-06-01",
   "unit": "TWh",
   "sources_legend": {
     "gas": "Gas naturale",
@@ -11,5 +11,222 @@
     "altre_rinnovabili": "Geotermia + biomasse + rifiuti",
     "altre_fossili": "Carbone + olio combustibile + altri fossili"
   },
-  "observations": []
+  "observations": [
+    {
+      "period": "2024-06",
+      "gas": 6.14,
+      "solare": 3.2,
+      "idro": 5.63,
+      "eolico": 1.32,
+      "altre_rinnovabili": 0.92,
+      "altre_fossili": 1.77
+    },
+    {
+      "period": "2024-07",
+      "gas": 9.83,
+      "solare": 3.81,
+      "idro": 5.48,
+      "eolico": 1.19,
+      "altre_rinnovabili": 0.95,
+      "altre_fossili": 2.1
+    },
+    {
+      "period": "2024-08",
+      "gas": 9.61,
+      "solare": 3.41,
+      "idro": 3.85,
+      "eolico": 0.91,
+      "altre_rinnovabili": 0.92,
+      "altre_fossili": 2.08
+    },
+    {
+      "period": "2024-09",
+      "gas": 8.57,
+      "solare": 2.47,
+      "idro": 3.48,
+      "eolico": 1.61,
+      "altre_rinnovabili": 0.81,
+      "altre_fossili": 1.83
+    },
+    {
+      "period": "2024-10",
+      "gas": 7.62,
+      "solare": 1.7,
+      "idro": 4.71,
+      "eolico": 1.36,
+      "altre_rinnovabili": 0.85,
+      "altre_fossili": 1.73
+    },
+    {
+      "period": "2024-11",
+      "gas": 9.86,
+      "solare": 1.43,
+      "idro": 2.95,
+      "eolico": 1.74,
+      "altre_rinnovabili": 0.86,
+      "altre_fossili": 1.84
+    },
+    {
+      "period": "2024-12",
+      "gas": 9.87,
+      "solare": 1.12,
+      "idro": 2.05,
+      "eolico": 2.61,
+      "altre_rinnovabili": 0.71,
+      "altre_fossili": 1.75
+    },
+    {
+      "period": "2025-01",
+      "gas": 10.28,
+      "solare": 1.11,
+      "idro": 2.1,
+      "eolico": 2.55,
+      "altre_rinnovabili": 0.45,
+      "altre_fossili": 1.79
+    },
+    {
+      "period": "2025-02",
+      "gas": 10.49,
+      "solare": 1.52,
+      "idro": 1.77,
+      "eolico": 1.27,
+      "altre_rinnovabili": 0.47,
+      "altre_fossili": 1.6
+    },
+    {
+      "period": "2025-03",
+      "gas": 8.69,
+      "solare": 2.6,
+      "idro": 1.94,
+      "eolico": 2.22,
+      "altre_rinnovabili": 0.62,
+      "altre_fossili": 1.63
+    },
+    {
+      "period": "2025-04",
+      "gas": 5.53,
+      "solare": 3.43,
+      "idro": 2.72,
+      "eolico": 1.91,
+      "altre_rinnovabili": 0.62,
+      "altre_fossili": 1.61
+    },
+    {
+      "period": "2025-05",
+      "gas": 4.27,
+      "solare": 3.91,
+      "idro": 3.88,
+      "eolico": 1.86,
+      "altre_rinnovabili": 0.67,
+      "altre_fossili": 1.66
+    },
+    {
+      "period": "2025-06",
+      "gas": 6.97,
+      "solare": 4.4,
+      "idro": 3.63,
+      "eolico": 1.21,
+      "altre_rinnovabili": 0.79,
+      "altre_fossili": 1.52
+    },
+    {
+      "period": "2025-07",
+      "gas": 8.95,
+      "solare": 4.26,
+      "idro": 3.04,
+      "eolico": 1.82,
+      "altre_rinnovabili": 0.56,
+      "altre_fossili": 1.56
+    },
+    {
+      "period": "2025-08",
+      "gas": 6.96,
+      "solare": 4.04,
+      "idro": 2.59,
+      "eolico": 1.48,
+      "altre_rinnovabili": 0.49,
+      "altre_fossili": 1.6
+    },
+    {
+      "period": "2025-09",
+      "gas": 8.29,
+      "solare": 3.19,
+      "idro": 2.58,
+      "eolico": 1.24,
+      "altre_rinnovabili": 0.6,
+      "altre_fossili": 1.65
+    },
+    {
+      "period": "2025-10",
+      "gas": 8.44,
+      "solare": 2.48,
+      "idro": 1.94,
+      "eolico": 2.31,
+      "altre_rinnovabili": 0.55,
+      "altre_fossili": 1.76
+    },
+    {
+      "period": "2025-11",
+      "gas": 10.26,
+      "solare": 1.66,
+      "idro": 1.91,
+      "eolico": 1.8,
+      "altre_rinnovabili": 0.46,
+      "altre_fossili": 1.88
+    },
+    {
+      "period": "2025-12",
+      "gas": 12.26,
+      "solare": 1.34,
+      "idro": 1.59,
+      "eolico": 1.46,
+      "altre_rinnovabili": 0.53,
+      "altre_fossili": 1.97
+    },
+    {
+      "period": "2026-01",
+      "gas": 13.27,
+      "solare": 1.28,
+      "idro": 1.72,
+      "eolico": 2.99,
+      "altre_rinnovabili": 0.18,
+      "altre_fossili": 1.62
+    },
+    {
+      "period": "2026-02",
+      "gas": 9.12,
+      "solare": 1.98,
+      "idro": 1.81,
+      "eolico": 2.75,
+      "altre_rinnovabili": 0.32,
+      "altre_fossili": 1.46
+    },
+    {
+      "period": "2026-03",
+      "gas": 7.98,
+      "solare": 2.87,
+      "idro": 1.85,
+      "eolico": 1.94,
+      "altre_rinnovabili": 0.62,
+      "altre_fossili": 1.54
+    },
+    {
+      "period": "2026-04",
+      "gas": 5.3,
+      "solare": 3.66,
+      "idro": 2.23,
+      "eolico": 1.93,
+      "altre_rinnovabili": 0.38,
+      "altre_fossili": 1.48
+    },
+    {
+      "period": "2026-05",
+      "gas": 5.48,
+      "solare": 4.11,
+      "idro": 2.52,
+      "eolico": 2.13,
+      "altre_rinnovabili": 0.44,
+      "altre_fossili": 1.43
+    }
+  ]
 }

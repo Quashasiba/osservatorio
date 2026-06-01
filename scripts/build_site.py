@@ -461,19 +461,6 @@ TEMPLATE = """<!doctype html>
       --accent-transizione: #1d6f42; /* mobilità, energia, ambiente */
       --accent-societa:     #2c4a7a; /* finanza, telecom, accesso */
     }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #16130f;
-        --bg-soft: #1f1b16;
-        --fg: #f0ebe0;
-        --fg-soft: #a8a195;
-        --fg-mute: #6e6a62;
-        --rule: #322c25;
-        --rule-soft: #28231d;
-        --accent-transizione: #6cb88a;
-        --accent-societa:     #7fa3d4;
-      }
-    }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
     body { font-family: "Geist", system-ui, sans-serif; line-height: 1.5; -webkit-font-smoothing: antialiased; }
@@ -497,7 +484,6 @@ TEMPLATE = """<!doctype html>
     section.card[data-group="societa"]     .cat { color: var(--accent-societa); }
     section.card h2 { font-family: "Fraunces", serif; font-weight: 500; font-size: clamp(24px, 2.6vw, 32px); margin: 0 0 8px; letter-spacing: -0.005em; line-height: 1.15; }
     .badge-fresh { display: inline-block; background: #c0392b; color: #fff; font-family: "Geist", sans-serif; text-transform: uppercase; letter-spacing: 0.12em; font-size: 9.5px; font-weight: 500; padding: 4px 8px 3px; border-radius: 3px; vertical-align: middle; margin-left: 12px; line-height: 1; transform: translateY(-4px); }
-    @media (prefers-color-scheme: dark) { .badge-fresh { background: #e8553f; color: #16130f; } }
     section.card .sub { color: var(--fg-soft); font-size: 14px; line-height: 1.55; margin: 0 0 24px; max-width: 64ch; }
 
     /* Headline KPI — la cifra-chiave prima del grafico */

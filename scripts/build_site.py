@@ -317,7 +317,7 @@ def chart_desertification(data: dict) -> str:
 
 
 def chart_energy_mix(data: dict) -> str:
-    """Stacked bar chart del mix di generazione elettrica italiana, ultimi 24 mesi.
+    """Stacked area chart del mix di generazione elettrica italiana, ultimi 24 mesi.
 
     6 fonti aggregate per leggibilità: gas, solare, idro, eolico, altre rinnovabili, altre fossili.
     """
@@ -332,10 +332,8 @@ def chart_energy_mix(data: dict) -> str:
     obs = obs[-24:]
     periods = [datetime.strptime(o["period"], "%Y-%m").replace(day=15) for o in obs]
 
-    BAR_WIDTH_MS = 2.0e9  # ~23 giorni — larghezza barra per dato mensile
-
     # Palette: ordine narrativo (fossili in fondo grigio, rinnovabili sopra a colori)
-    # In stacked bar l'ORDINE conta: il primo trace sta in fondo alla pila.
+    # In stacked area, l'ORDINE conta: il primo trace sta sotto.
     layers = [
         ("altre_fossili",     "Altre fossili",       "#2f2f2f"),
         ("gas",                "Gas naturale",        "#6f6f6f"),
@@ -348,22 +346,22 @@ def chart_energy_mix(data: dict) -> str:
     fig = go.Figure()
     for key, label, color in layers:
         values = [o.get(key, 0) for o in obs]
-        fig.add_trace(go.Bar(
+        fig.add_trace(go.Scatter(
             x=periods, y=values, name=label,
-            marker_color=color,
-            width=BAR_WIDTH_MS,
+            stackgroup="one",
+            mode="none",  # solo riempimento, niente linea
+            fillcolor=color,
             cliponaxis=False,
             hovertemplate=f"<b>{label}</b><br>%{{x|%b %Y}}: %{{y:.1f}} TWh<extra></extra>",
         ))
     layout = common_layout()
-    layout["barmode"] = "stack"
     layout["margin"] = dict(l=64, r=24, t=24, b=70)
-    # Padding di mezza barra per lato: la prima/ultima barra non vengono tagliate
+    # Niente padding extra: la prima/ultima data coincidono col bordo
     layout["xaxis"] = dict(
         type="date", showgrid=False, linecolor=COLOR_GRID, automargin=True,
         tickfont=dict(size=11), ticks="outside", ticklen=4, tickcolor=COLOR_GRID,
         tickformat="%b<br>%Y", dtick="M3",
-        range=[periods[0] - timedelta(days=18), periods[-1] + timedelta(days=18)],
+        range=[periods[0], periods[-1]],
     )
     layout["yaxis"] = dict(
         gridcolor=COLOR_GRID, zerolinecolor=COLOR_GRID, automargin=True,

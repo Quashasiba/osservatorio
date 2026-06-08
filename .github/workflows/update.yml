@@ -8,7 +8,10 @@ on:
     #
     # 1) UNRAE pubblica i dati BEV nei primi 1-4 giorni del mese successivo
     #    (es. i dati di maggio 2026 sono usciti il 1° giugno), ma può slittare.
-    #    Tentiamo il 2, 4, 6, 10 e 14 di OGNI mese alle 09:00 UTC (~10:00/11:00 it):
+    #    Tentativo serale il 1° alle 17:00 UTC (~19:00 it) per cogliere una
+    #    pubblicazione pomeridiana del giorno stesso.
+    - cron: "0 17 1 * *"
+    #    Poi il 2, 4, 6, 10 e 14 di OGNI mese alle 09:00 UTC (~10:00/11:00 it):
     #    il 2 e il 4 colgono la pubblicazione tipica appena esce, gli altri giorni
     #    coprono eventuali slittamenti senza aspettare il mese dopo.
     #    Questi run mensili ridanno una chance anche a tutte le altre fonti.

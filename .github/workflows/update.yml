@@ -6,12 +6,13 @@ on:
     # run, ma ogni fetch è idempotente (salta se il periodo è già nel JSON):
     # aggiungere giorni di retry costa zero e non produce commit doppi.
     #
-    # 1) UNRAE pubblica i dati BEV nei primi 1-4 giorni del mese successivo,
-    #    ma può slittare (a giugno 2026 maggio non era ancora uscito il giorno 8).
-    #    Tentiamo il 6, 10 e 14 di OGNI mese alle 09:00 UTC (~10:00/11:00 it):
-    #    3 tentativi mensili coprono gli slittamenti senza aspettare il mese dopo.
+    # 1) UNRAE pubblica i dati BEV nei primi 1-4 giorni del mese successivo
+    #    (es. i dati di maggio 2026 sono usciti il 1° giugno), ma può slittare.
+    #    Tentiamo il 2, 4, 6, 10 e 14 di OGNI mese alle 09:00 UTC (~10:00/11:00 it):
+    #    il 2 e il 4 colgono la pubblicazione tipica appena esce, gli altri giorni
+    #    coprono eventuali slittamenti senza aspettare il mese dopo.
     #    Questi run mensili ridanno una chance anche a tutte le altre fonti.
-    - cron: "0 9 6,10,14 * *"
+    - cron: "0 9 2,4,6,10,14 * *"
     #
     # 2) PoliMi (Osservatorio Innovative Payments) pubblica il dato annuale
     #    cashless intorno al 12 marzo. Run extra il 16 e il 23 marzo per

@@ -2,26 +2,32 @@ name: Aggiorna dati mensili
 
 on:
   schedule:
-    # Schedule ottimizzato sulle fonti:
+    # Schedule ottimizzato sulle fonti. Il job riscarica TUTTE le fonti a ogni
+    # run, ma ogni fetch è idempotente (salta se il periodo è già nel JSON):
+    # aggiungere giorni di retry costa zero e non produce commit doppi.
     #
-    # 1) UNRAE pubblica i dati BEV nei primi 1-4 giorni del mese successivo.
-    #    Lanciamo il giorno 6 alle 09:00 UTC (~10:00/11:00 italiane) per avere
-    #    margine in caso di slittamento (es. weekend/festivi).
-    - cron: "0 9 6 * *"
+    # 1) UNRAE pubblica i dati BEV nei primi 1-4 giorni del mese successivo,
+    #    ma può slittare (a giugno 2026 maggio non era ancora uscito il giorno 8).
+    #    Tentiamo il 6, 10 e 14 di OGNI mese alle 09:00 UTC (~10:00/11:00 it):
+    #    3 tentativi mensili coprono gli slittamenti senza aspettare il mese dopo.
+    #    Questi run mensili ridanno una chance anche a tutte le altre fonti.
+    - cron: "0 9 6,10,14 * *"
     #
     # 2) PoliMi (Osservatorio Innovative Payments) pubblica il dato annuale
-    #    cashless intorno al 12 marzo. Run extra il 16 marzo per cogliere il
-    #    dato 4 giorni dopo, invece di aspettare il 6 aprile.
-    - cron: "0 9 16 3 *"
+    #    cashless intorno al 12 marzo. Run extra il 16 e il 23 marzo per
+    #    cogliere il dato anche in caso di slittamento, senza aspettare aprile.
+    - cron: "0 9 16,23 3 *"
     #
     # 3) First CISL pubblica il report annuale della desertificazione bancaria
-    #    a fine gennaio. Run extra il 31 gennaio per cogliere il dato fresco.
+    #    a fine gennaio. Run extra il 31 gennaio e il 7 febbraio (retry) per
+    #    cogliere il dato fresco anche se la pubblicazione slitta a inizio mese.
     - cron: "0 9 31 1 *"
+    - cron: "0 9 7 2 *"
     #
     # 4) ACI pubblica l'Autoritratto annuale (parco veicolare) a novembre.
-    #    Run extra il 15 dicembre per cogliere il dato del nuovo anno
-    #    pubblicato qualche settimana prima.
-    - cron: "0 9 15 12 *"
+    #    Run extra il 15 e il 22 dicembre per cogliere il dato del nuovo anno
+    #    pubblicato qualche settimana prima, con un retry a una settimana.
+    - cron: "0 9 15,22 12 *"
 
   workflow_dispatch: # Permette di lanciarlo manualmente dal tab Actions
 

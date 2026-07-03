@@ -98,6 +98,20 @@ def append_observation(new_obs: dict) -> bool:
         print(f"  ⊝ anno {new_obs['year']} già presente, skip.")
         return False
 
+    # Sanity check: quote in range plausibile e scostamento contenuto rispetto
+    # all'ultimo anno noto (le quote annuali si muovono di pochi punti).
+    ultimo = max(data["observations"], key=lambda o: o["year"])
+    for campo in ("cashless_pct", "cash_pct"):
+        q = new_obs[campo]
+        if not (10 <= q <= 90):
+            raise ValueError(f"{campo}={q}% fuori range plausibile (10-90): "
+                             "probabile errore di parsing, non salvo.")
+        prev = ultimo.get(campo)
+        if prev is not None and abs(q - prev) > 10:
+            raise ValueError(
+                f"{campo}={q}% per {new_obs['year']} si discosta di oltre 10 punti "
+                f"da {prev}% del {ultimo['year']}: probabile errore di parsing, non salvo.")
+
     clean = {k: v for k, v in new_obs.items() if not k.startswith("_")}
     data["observations"].append(clean)
     data["observations"].sort(key=lambda o: o["year"])

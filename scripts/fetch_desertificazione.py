@@ -174,6 +174,19 @@ def main() -> int:
     # Snapshot dei dati prima della modifica per capire se cambiano davvero
     existing_years = {o["year"] for o in data["observations"]}
     year = extracted["year"]
+
+    # Sanity check: oltre ai range assoluti in extract_numbers, il numero di
+    # sportelli varia di pochi % l'anno. Uno scostamento oltre il 20%
+    # dall'anno precedente più vicino è quasi certamente un errore di parsing.
+    precedenti = [o for o in data["observations"] if o["year"] < year]
+    if precedenti:
+        ultimo = max(precedenti, key=lambda o: o["year"])
+        prev_sport = ultimo.get("sportelli")
+        if prev_sport and not (0.8 * prev_sport <= extracted["sportelli"] <= 1.2 * prev_sport):
+            print(f"ERRORE: sportelli={extracted['sportelli']} per {year} si discosta "
+                  f"oltre il 20% da {prev_sport} del {ultimo['year']}: probabile "
+                  "errore di parsing, non salvo.", file=sys.stderr)
+            return 1
     data_changed = False
 
     if year in existing_years:

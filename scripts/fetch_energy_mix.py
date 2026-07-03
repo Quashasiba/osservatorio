@@ -226,6 +226,13 @@ def main() -> int:
         if month in existing:
             continue
         twh = mwh_to_twh(all_months[month])
+        # Sanity check: la generazione mensile Italia è ~18-28 TWh. Un totale
+        # fuori range indica mese parziale o parse errato: skip, non salvo.
+        totale = sum(twh.values())
+        if not (10 <= totale <= 40):
+            print(f"  ⚠ {month}: totale {totale:.1f} TWh implausibile "
+                  f"(atteso 10-40), scarto il mese.", file=sys.stderr)
+            continue
         new_observations.append({"period": month, **twh})
 
     if not new_observations:

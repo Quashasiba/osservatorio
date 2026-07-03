@@ -132,6 +132,22 @@ def update_observation(new_period: str, new_shares: dict) -> bool:
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    # Sanity check: quote per operatore in range plausibile e scostamento
+    # contenuto rispetto all'ultimo trimestre non stimato (le quote trimestrali
+    # si muovono di frazioni di punto).
+    ufficiali = [o for o in data["observations"]
+                 if not o.get("estimated") and o["period"] != new_period]
+    ultimo = max(ufficiali, key=lambda o: o["period"]) if ufficiali else None
+    for op, q in new_shares.items():
+        if not (3 <= q <= 50):
+            raise ValueError(f"quota {op}={q}% fuori range plausibile (3-50): "
+                             "probabile errore di parsing, non salvo.")
+        prev = ultimo.get(op) if ultimo else None
+        if prev is not None and abs(q - prev) > 10:
+            raise ValueError(
+                f"quota {op}={q}% per {new_period} si discosta di oltre 10 punti "
+                f"da {prev}% di {ultimo['period']}: probabile errore di parsing, non salvo.")
+
     found = False
     for obs in data["observations"]:
         if obs["period"] == new_period:

@@ -98,9 +98,10 @@ def valuta_comunicato(html: str) -> dict | None:
     if RE_EUROPA.search(titolo) or RE_NON_MENSILE.search(titolo):
         return None
 
-    # Quota di mercato BEV
+    # Quota di mercato BEV. Quantificatore lazy + lookbehind: la versione greedy
+    # senza lookbehind mangiava le cifre iniziali della quota ("10,1%" → "0,1%").
     quota_m = re.search(
-        r"(?:elettriche pure|BEV)[^%]{0,80}(\d+[,\.]\d+)\s*%",
+        r"(?:elettriche pure|BEV)[^%]{0,80}?(?<!\d)(\d{1,2}[,\.]\d+)\s*%",
         text, re.IGNORECASE,
     )
     # Totale immatricolazioni del mese (numero italiano con separatore migliaia)
@@ -133,6 +134,18 @@ def append_observation(new_obs: dict) -> bool:
     if new_obs["period"] in existing:
         print(f"  ⊝ periodo {new_obs['period']} già presente, skip.")
         return False
+
+    # Sanity check: una quota che si discosta più di 2× dall'ultimo mese noto è
+    # quasi certamente un errore di parsing (v. giugno 2026: "10,1%" letto "0,1%").
+    ultimo = max(data["observations"], key=lambda o: o["period"])
+    prev_quota = ultimo["market_share_pct"]
+    quota = new_obs["market_share_pct"]
+    if prev_quota > 0 and not (prev_quota / 2 <= quota <= prev_quota * 2):
+        raise ValueError(
+            f"quota BEV {quota}% per {new_obs['period']} implausibile rispetto a "
+            f"{prev_quota}% di {ultimo['period']}: probabile errore di parsing, "
+            "non salvo."
+        )
 
     # Rimuovi campi interni con underscore prima di salvare
     clean = {k: v for k, v in new_obs.items() if not k.startswith("_")}

@@ -181,6 +181,22 @@ def main() -> int:
         "altre": milano["altre"],
         "totale": milano["benzina"] + milano["gasolio"] + milano["altre"],
     }
+
+    # Sanity check: il parco circolante cambia di pochi % l'anno. Un totale che
+    # si discosta oltre il 20% dall'ultimo anno noto (o una categoria a zero) è
+    # quasi certamente un errore di estrazione (riga/colonna sbagliata).
+    if any(v <= 0 for v in milano.values()):
+        print(f"ERRORE: categoria a zero in {milano}: probabile errore di "
+              "estrazione, non salvo.", file=sys.stderr)
+        return 1
+    if data["observations"]:
+        ultimo = max(data["observations"], key=lambda o: o["year"])
+        prev_tot = ultimo["totale"]
+        if not (0.8 * prev_tot <= new_obs["totale"] <= 1.2 * prev_tot):
+            print(f"ERRORE: totale {new_obs['totale']} per {year} si discosta oltre "
+                  f"il 20% da {prev_tot} del {ultimo['year']}: probabile errore di "
+                  "estrazione, non salvo.", file=sys.stderr)
+            return 1
     data["observations"].append(new_obs)
     data["observations"].sort(key=lambda o: o["year"])
     data["updated_at"] = date.today().isoformat()

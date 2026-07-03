@@ -1,7 +1,7 @@
 {
   "source": "UNRAE",
   "note": "Dati 2025-2026 ufficiali UNRAE. Dati 2018-2024 sono stime mensili ricostruite da totali annuali noti applicando un pattern di stagionalità tipico del mercato auto italiano (agosto basso, dicembre alto). Il fetcher mensile sovrascrive ogni nuovo periodo con il dato ufficiale appena UNRAE lo pubblica.",
-  "updated_at": "2026-07-01",
+  "updated_at": "2026-07-03",
   "observations": [
     {
       "period": "2018-01",
@@ -584,12 +584,12 @@
     },
     {
       "period": "2026-04",
-      "registrations": 13238,
+      "registrations": 13193,
       "market_share_pct": 8.5
     },
     {
       "period": "2026-05",
-      "registrations": 13208,
+      "registrations": 13305,
       "market_share_pct": 8.8
     },
     {

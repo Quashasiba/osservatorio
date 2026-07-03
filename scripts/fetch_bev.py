@@ -118,44 +118,74 @@ def valuta_comunicato(html: str) -> dict | None:
     if quota is None or totale is None or not (TOTALE_MIN <= totale <= TOTALE_MAX):
         return None
 
+    # Unità BEV esplicite se il comunicato le dichiara da qualche parte
+    # (es. "quota del 10,1% con 14.894 unità"); altrimenti derivate da
+    # totale × quota. Il valore esplicito è quello ufficiale, preferiscilo.
+    # Il filtro di coerenza (entro il 10% dal derivato) evita di agganciare
+    # numeri che non c'entrano (cumulati annui, altre alimentazioni, ecc.).
+    bev = round(totale * quota / 100)
+    for unita_m in re.finditer(r"(\d{1,3}(?:\.\d{3})+)\s+unità", text):
+        esplicito = int(unita_m.group(1).replace(".", ""))
+        if 0.9 * bev <= esplicito <= 1.1 * bev:
+            bev = esplicito
+            break
+
     return {
         "period": periodo,
-        "registrations": round(totale * quota / 100),
+        "registrations": bev,
         "market_share_pct": quota,
         "_total_month": totale,  # utile per debug, non viene salvato
     }
 
 
-def append_observation(new_obs: dict) -> bool:
+def upsert_observation(new_obs: dict) -> bool:
+    """Aggiunge il periodo se nuovo; se già presente lo aggiorna solo quando il
+    dato riestratto è una correzione minore (stessa quota, unità entro il 10%):
+    così il dato ufficiale esplicito rimpiazza quello derivato totale×quota,
+    ma un futuro errore di parsing non può sovrascrivere dati buoni."""
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    existing = {o["period"] for o in data["observations"]}
-    if new_obs["period"] in existing:
-        print(f"  ⊝ periodo {new_obs['period']} già presente, skip.")
-        return False
-
-    # Sanity check: una quota che si discosta più di 2× dall'ultimo mese noto è
-    # quasi certamente un errore di parsing (v. giugno 2026: "10,1%" letto "0,1%").
-    ultimo = max(data["observations"], key=lambda o: o["period"])
-    prev_quota = ultimo["market_share_pct"]
-    quota = new_obs["market_share_pct"]
-    if prev_quota > 0 and not (prev_quota / 2 <= quota <= prev_quota * 2):
-        raise ValueError(
-            f"quota BEV {quota}% per {new_obs['period']} implausibile rispetto a "
-            f"{prev_quota}% di {ultimo['period']}: probabile errore di parsing, "
-            "non salvo."
-        )
-
     # Rimuovi campi interni con underscore prima di salvare
     clean = {k: v for k, v in new_obs.items() if not k.startswith("_")}
-    data["observations"].append(clean)
+
+    esistente = next((o for o in data["observations"]
+                      if o["period"] == new_obs["period"]), None)
+    if esistente is not None:
+        stessa_quota = abs(esistente["market_share_pct"] - clean["market_share_pct"]) <= 0.5
+        unita_vicine = (0.9 * esistente["registrations"]
+                        <= clean["registrations"] <= 1.1 * esistente["registrations"])
+        if esistente == {**esistente, **clean}:
+            print(f"  ⊝ periodo {clean['period']} già presente e identico, skip.")
+            return False
+        if not (stessa_quota and unita_vicine) and not esistente.get("estimated"):
+            print(f"  ⚠ periodo {clean['period']}: riestratto {clean} troppo diverso "
+                  f"dall'esistente {esistente}, non sovrascrivo (verificare a mano).",
+                  file=sys.stderr)
+            return False
+        print(f"  ✓ aggiornato {clean['period']}: {esistente} → {clean}")
+        esistente.clear()
+        esistente.update(clean)
+    else:
+        # Sanity check: una quota che si discosta più di 2× dall'ultimo mese noto
+        # è quasi certamente un errore di parsing ("10,1%" letto "0,1%").
+        ultimo = max(data["observations"], key=lambda o: o["period"])
+        prev_quota = ultimo["market_share_pct"]
+        quota = clean["market_share_pct"]
+        if prev_quota > 0 and not (prev_quota / 2 <= quota <= prev_quota * 2):
+            raise ValueError(
+                f"quota BEV {quota}% per {clean['period']} implausibile rispetto a "
+                f"{prev_quota}% di {ultimo['period']}: probabile errore di parsing, "
+                "non salvo."
+            )
+        data["observations"].append(clean)
+        print(f"  ✓ aggiunto: {clean}")
+
     data["observations"].sort(key=lambda o: o["period"])
     data["updated_at"] = date.today().isoformat()
 
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-    print(f"  ✓ aggiunto: {clean}")
     return True
 
 
@@ -174,7 +204,12 @@ def main() -> int:
         print("  ✗ Nessun link a comunicati trovato (layout cambiato?).")
         return 1
 
-    # Apre i comunicati dal più recente e si ferma al primo mensile italiano valido.
+    # Apre i comunicati dal più recente: ogni mensile italiano valido viene
+    # aggiunto o aggiornato (upsert). Processarli tutti — non solo il primo —
+    # permette di correggere retroattivamente i mesi già salvati quando il
+    # comunicato riporta il dato ufficiale esplicito.
+    trovati = 0
+    periodi_visti: set[str] = set()
     for href in links[:MAX_COMUNICATI]:
         try:
             page = requests.get(href, headers=headers, timeout=TIMEOUT)
@@ -184,18 +219,21 @@ def main() -> int:
             continue
 
         obs = valuta_comunicato(page.text)
-        if obs is None:
+        if obs is None or obs["period"] in periodi_visti:
             continue
+        periodi_visti.add(obs["period"])
 
         print(f"  Trovato: periodo={obs['period']} "
               f"quota_bev={obs['market_share_pct']}% "
               f"totale_mese={obs.get('_total_month')} "
-              f"bev_calcolate={obs['registrations']}")
-        append_observation(obs)
-        return 0
+              f"bev={obs['registrations']}")
+        upsert_observation(obs)
+        trovati += 1
 
-    print("  ✗ Nessun comunicato mensile italiano sulle immatricolazioni trovato.")
-    return 1
+    if not trovati:
+        print("  ✗ Nessun comunicato mensile italiano sulle immatricolazioni trovato.")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

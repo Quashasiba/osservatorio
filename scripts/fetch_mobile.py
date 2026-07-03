@@ -152,14 +152,26 @@ def update_observation(new_period: str, new_shares: dict) -> bool:
     for obs in data["observations"]:
         if obs["period"] == new_period:
             if not obs.get("estimated"):
-                print(f"  ⊝ {new_period} già presente con dati ufficiali, skip.")
-                return False
-            # Sostituisce la stima con i dati ufficiali
+                vecchie = {k: v for k, v in obs.items() if k != "period"}
+                if vecchie == new_shares:
+                    print(f"  ⊝ {new_period} già presente e identico, skip.")
+                    return False
+                # Upsert: AGCOM a volte rivede le quote. Accetta solo correzioni
+                # minori (entro 2 punti per operatore): un errore di parsing non
+                # può sovrascrivere dati buoni.
+                if any(abs(new_shares[op] - vecchie[op]) > 2
+                       for op in new_shares if op in vecchie):
+                    print(f"  ⚠ {new_period}: riestratto {new_shares} troppo diverso "
+                          f"dall'esistente {vecchie}, non sovrascrivo (verificare a mano).",
+                          file=sys.stderr)
+                    return False
+                print(f"  ✓ aggiornato {new_period}: {vecchie} → {new_shares}")
+            else:
+                print(f"  ✓ sostituita stima per {new_period} con dati ufficiali: {new_shares}")
             obs.clear()
             obs["period"] = new_period
             obs.update(new_shares)
             found = True
-            print(f"  ✓ sostituita stima per {new_period} con dati ufficiali: {new_shares}")
             break
 
     if not found:

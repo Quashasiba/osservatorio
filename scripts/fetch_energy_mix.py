@@ -178,30 +178,32 @@ def main() -> int:
         data = json.load(f)
 
     # Cosa abbiamo già?
-    existing = {o["period"] for o in data.get("observations", [])}
-    last_month = max(existing) if existing else None
+    obs_by_period = {o["period"]: o for o in data.get("observations", [])}
+    last_month = max(obs_by_period) if obs_by_period else None
 
-    # Cosa scaricare: dal mese dopo l'ultimo presente al mese SCORSO incluso
+    # Cosa scaricare: fino al mese SCORSO incluso (il corrente non è completo)
     today = date.today()
     end_target = date(today.year, today.month, 1) - timedelta(days=1)  # ultimo giorno mese scorso
     end_month = end_target.strftime("%Y-%m")
-
-    if last_month and last_month >= end_month:
-        print(f"Già aggiornato fino a {last_month}, niente da fare.")
-        return 0
 
     # Backfill iniziale: 24 mesi indietro se JSON vuoto
     if not last_month:
         start_target = date(today.year - 2, today.month, 1)
     else:
+        # Riparti da 2 mesi PRIMA dell'ultimo salvato: ENTSO-E rivede i dati
+        # retroattivamente, così gli ultimi mesi vengono ricontrollati e
+        # corretti (upsert) invece di restare congelati alla prima lettura.
         ly, lm = map(int, last_month.split("-"))
-        # mese successivo all'ultimo presente
-        next_m = lm + 1
-        next_y = ly
-        if next_m > 12:
-            next_m = 1
-            next_y += 1
-        start_target = date(next_y, next_m, 1)
+        prev_m = lm - 2
+        prev_y = ly
+        if prev_m < 1:
+            prev_m += 12
+            prev_y -= 1
+        start_target = date(prev_y, prev_m, 1)
+
+    if start_target > end_target:
+        print("Nessun mese completo da scaricare.")
+        return 0
 
     print(f"Scarico da {start_target.strftime('%Y-%m')} a {end_month}")
 
@@ -220,11 +222,11 @@ def main() -> int:
         print("Nessun dato nuovo dall'API.")
         return 0
 
-    # Costruisci nuove osservazioni
-    new_observations = []
+    # Upsert: aggiungi i mesi nuovi, aggiorna quelli esistenti se ENTSO-E li
+    # ha rivisti (revisioni piccole; scostamenti grandi = dato sospetto, skip).
+    aggiunti: list[str] = []
+    aggiornati: list[str] = []
     for month in sorted(all_months):
-        if month in existing:
-            continue
         twh = mwh_to_twh(all_months[month])
         # Sanity check: la generazione mensile Italia è ~18-28 TWh. Un totale
         # fuori range indica mese parziale o parse errato: skip, non salvo.
@@ -233,22 +235,37 @@ def main() -> int:
             print(f"  ⚠ {month}: totale {totale:.1f} TWh implausibile "
                   f"(atteso 10-40), scarto il mese.", file=sys.stderr)
             continue
-        new_observations.append({"period": month, **twh})
 
-    if not new_observations:
-        print("Nessun mese nuovo da aggiungere.")
+        cur = obs_by_period.get(month)
+        new_obs = {"period": month, **twh}
+        if cur is None:
+            data["observations"].append(new_obs)
+            aggiunti.append(month)
+        elif cur != new_obs:
+            old_tot = sum(v for k, v in cur.items() if k != "period")
+            if not (0.8 * old_tot <= totale <= 1.2 * old_tot):
+                print(f"  ⚠ {month}: totale rivisto {totale:.1f} TWh si discosta "
+                      f"oltre il 20% da {old_tot:.1f} salvato, non sovrascrivo "
+                      "(verificare a mano).", file=sys.stderr)
+                continue
+            cur.clear()
+            cur.update(new_obs)
+            aggiornati.append(month)
+
+    if not aggiunti and not aggiornati:
+        print("Nessuna modifica: dati già allineati.")
         return 0
 
-    # Aggiungi al JSON e ordina
-    data["observations"].extend(new_observations)
     data["observations"].sort(key=lambda o: o["period"])
     data["updated_at"] = date.today().isoformat()
 
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
         f.write("\n")
-    print(f"✓ Aggiunti {len(new_observations)} mesi: "
-          f"{new_observations[0]['period']} → {new_observations[-1]['period']}")
+    if aggiunti:
+        print(f"✓ Aggiunti {len(aggiunti)} mesi: {aggiunti[0]} → {aggiunti[-1]}")
+    if aggiornati:
+        print(f"✓ Aggiornati (revisioni ENTSO-E): {', '.join(aggiornati)}")
     return 0
 
 

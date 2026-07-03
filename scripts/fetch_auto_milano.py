@@ -143,8 +143,6 @@ def main() -> int:
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    existing_years = {o["year"] for o in data["observations"]}
-
     print("→ Cerco l'Autoritratto più recente su ACI…")
     latest = find_latest_autoritratto()
     if not latest:
@@ -153,10 +151,9 @@ def main() -> int:
     year, url = latest
     print(f"  Trovato: Autoritratto {year} → {url}")
 
-    if year in existing_years:
-        print(f"Anno {year} già presente nel JSON, niente da fare.")
-        return 0
-
+    # Anche se l'anno è già nel JSON si riestrae comunque (upsert): ACI a
+    # volte ripubblica il file con correzioni. Costa un download in più al
+    # mese, ma elimina ogni intervento manuale.
     print(f"→ Scarico ZIP per anno {year}…")
     r = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT)
     r.raise_for_status()
@@ -189,22 +186,41 @@ def main() -> int:
         print(f"ERRORE: categoria a zero in {milano}: probabile errore di "
               "estrazione, non salvo.", file=sys.stderr)
         return 1
-    if data["observations"]:
-        ultimo = max(data["observations"], key=lambda o: o["year"])
-        prev_tot = ultimo["totale"]
-        if not (0.8 * prev_tot <= new_obs["totale"] <= 1.2 * prev_tot):
-            print(f"ERRORE: totale {new_obs['totale']} per {year} si discosta oltre "
-                  f"il 20% da {prev_tot} del {ultimo['year']}: probabile errore di "
-                  "estrazione, non salvo.", file=sys.stderr)
+
+    esistente = next((o for o in data["observations"] if o["year"] == year), None)
+    if esistente is not None:
+        if esistente == new_obs:
+            print(f"Anno {year} già presente e identico, niente da fare.")
+            return 0
+        # Upsert: accetta solo correzioni minori (entro il 10% per categoria),
+        # un errore di estrazione non può sovrascrivere dati buoni.
+        if any(not (0.9 * esistente[c] <= new_obs[c] <= 1.1 * esistente[c])
+               for c in ("benzina", "gasolio", "altre")):
+            print(f"ERRORE: riestratto {new_obs} troppo diverso dall'esistente "
+                  f"{esistente}, non sovrascrivo (verificare a mano).", file=sys.stderr)
             return 1
-    data["observations"].append(new_obs)
+        print(f"✓ Aggiornata osservazione {year}: {esistente} → {new_obs}")
+        esistente.clear()
+        esistente.update(new_obs)
+    else:
+        precedenti = [o for o in data["observations"] if o["year"] < year]
+        if precedenti:
+            ultimo = max(precedenti, key=lambda o: o["year"])
+            prev_tot = ultimo["totale"]
+            if not (0.8 * prev_tot <= new_obs["totale"] <= 1.2 * prev_tot):
+                print(f"ERRORE: totale {new_obs['totale']} per {year} si discosta oltre "
+                      f"il 20% da {prev_tot} del {ultimo['year']}: probabile errore di "
+                      "estrazione, non salvo.", file=sys.stderr)
+                return 1
+        data["observations"].append(new_obs)
+        print(f"✓ Aggiunta osservazione: {new_obs}")
+
     data["observations"].sort(key=lambda o: o["year"])
     data["updated_at"] = date.today().isoformat()
 
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
         f.write("\n")
-    print(f"✓ Aggiunta osservazione: {new_obs}")
     return 0
 
 

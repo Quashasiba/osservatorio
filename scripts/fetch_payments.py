@@ -89,37 +89,63 @@ def fetch_release_data() -> dict | None:
     return None
 
 
-def append_observation(new_obs: dict) -> bool:
+def upsert_observation(new_obs: dict) -> bool:
+    """Aggiunge l'anno se nuovo; se già presente lo aggiorna solo quando il
+    dato riestratto sostituisce una stima o è una correzione minore (quote
+    entro 2 punti, valore entro il 10%): un errore di parsing non può
+    sovrascrivere dati buoni."""
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    existing_years = {o["year"] for o in data["observations"]}
-    if new_obs["year"] in existing_years:
-        print(f"  ⊝ anno {new_obs['year']} già presente, skip.")
-        return False
-
-    # Sanity check: quote in range plausibile e scostamento contenuto rispetto
-    # all'ultimo anno noto (le quote annuali si muovono di pochi punti).
-    ultimo = max(data["observations"], key=lambda o: o["year"])
+    # Range assoluto plausibile, vale sia per anni nuovi che per correzioni.
     for campo in ("cashless_pct", "cash_pct"):
         q = new_obs[campo]
         if not (10 <= q <= 90):
             raise ValueError(f"{campo}={q}% fuori range plausibile (10-90): "
                              "probabile errore di parsing, non salvo.")
-        prev = ultimo.get(campo)
-        if prev is not None and abs(q - prev) > 10:
-            raise ValueError(
-                f"{campo}={q}% per {new_obs['year']} si discosta di oltre 10 punti "
-                f"da {prev}% del {ultimo['year']}: probabile errore di parsing, non salvo.")
 
-    clean = {k: v for k, v in new_obs.items() if not k.startswith("_")}
-    data["observations"].append(clean)
+    # Non sovrascrivere valori noti con None (es. valore mld non trovato).
+    clean = {k: v for k, v in new_obs.items()
+             if not k.startswith("_") and v is not None}
+
+    esistente = next((o for o in data["observations"]
+                      if o["year"] == clean["year"]), None)
+    if esistente is not None:
+        if esistente == {**esistente, **clean}:
+            print(f"  ⊝ anno {clean['year']} già presente e identico, skip.")
+            return False
+        quote_vicine = all(abs(esistente[c] - clean[c]) <= 2
+                           for c in ("cashless_pct", "cash_pct") if c in esistente)
+        val_prev, val_new = esistente.get("cashless_value_bn_eur"), clean.get("cashless_value_bn_eur")
+        valore_vicino = (val_prev is None or val_new is None
+                         or 0.9 * val_prev <= val_new <= 1.1 * val_prev)
+        if not (quote_vicine and valore_vicino) and not esistente.get("estimated"):
+            print(f"  ⚠ anno {clean['year']}: riestratto {clean} troppo diverso "
+                  f"dall'esistente {esistente}, non sovrascrivo (verificare a mano).",
+                  file=sys.stderr)
+            return False
+        print(f"  ✓ aggiornato {clean['year']}: {esistente} → {clean}")
+        esistente.pop("estimated", None)
+        esistente.update(clean)
+    else:
+        # Scostamento contenuto rispetto all'ultimo anno noto (le quote
+        # annuali si muovono di pochi punti).
+        ultimo = max(data["observations"], key=lambda o: o["year"])
+        for campo in ("cashless_pct", "cash_pct"):
+            prev = ultimo.get(campo)
+            if prev is not None and abs(clean[campo] - prev) > 10:
+                raise ValueError(
+                    f"{campo}={clean[campo]}% per {clean['year']} si discosta di oltre "
+                    f"10 punti da {prev}% del {ultimo['year']}: probabile errore di "
+                    "parsing, non salvo.")
+        data["observations"].append(clean)
+        print(f"  ✓ aggiunto: {clean}")
+
     data["observations"].sort(key=lambda o: o["year"])
     data["updated_at"] = date.today().isoformat()
 
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-    print(f"  ✓ aggiunto: {clean}")
     return True
 
 
@@ -136,7 +162,7 @@ def main() -> int:
               f"cash={obs['cash_pct']}% valore={obs.get('cashless_value_bn_eur')}mld "
               f"da {obs.get('_source_url')}")
 
-        append_observation(obs)
+        upsert_observation(obs)
         return 0
     except Exception as e:
         print(f"  ⊝ Errore (non bloccante): {e}", file=sys.stderr)

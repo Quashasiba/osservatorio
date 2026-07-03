@@ -190,9 +190,22 @@ def main() -> int:
     data_changed = False
 
     if year in existing_years:
-        # Aggiorna l'osservazione esistente solo se qualche valore cambia
+        # Aggiorna l'osservazione esistente solo se qualche valore cambia.
+        # Sui dati ufficiali (non stimati) accetta solo correzioni minori
+        # (entro il 10%): un errore di parsing non può sovrascrivere dati buoni.
         for o in data["observations"]:
             if o["year"] == year:
+                if not o.get("estimated"):
+                    divergenti = [
+                        k for k, v in extracted.items()
+                        if k != "year" and isinstance(o.get(k), (int, float))
+                        and not (0.9 * o[k] <= v <= 1.1 * o[k])
+                    ]
+                    if divergenti:
+                        print(f"WARN: {year}, campi {divergenti} riestratti troppo "
+                              f"diversi dall'esistente ({extracted} vs {o}), non "
+                              "sovrascrivo (verificare a mano).", file=sys.stderr)
+                        break
                 for k, v in extracted.items():
                     if k != "year" and o.get(k) != v:
                         o[k] = v

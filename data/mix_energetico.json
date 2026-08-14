@@ -1,7 +1,7 @@
 {
   "source": "ENTSO-E Transparency Platform - Actual Generation per Type (A75)",
   "note": "Mix di generazione elettrica in Italia, per fonte primaria, dati MENSILI. Valori in TWh. Aggregazione di dati orari forniti da ENTSO-E sulla base dei flussi dichiarati da Terna. Le categorie 'altre rinnovabili' (geotermia, biomasse, rifiuti) e 'altre fossili' (carbone, olio) sono aggregate per leggibilità. Il pompaggio è escluso (è accumulo, non generazione primaria). Aggiornamento mensile via ENTSO-E API.",
-  "updated_at": "2026-08-10",
+  "updated_at": "2026-08-14",
   "unit": "TWh",
   "sources_legend": {
     "gas": "Gas naturale",
@@ -239,8 +239,8 @@
     },
     {
       "period": "2026-07",
-      "gas": 11.13,
-      "solare": 4.79,
+      "gas": 11.12,
+      "solare": 4.8,
       "idro": 2.34,
       "eolico": 1.46,
       "altre_rinnovabili": 0.45,

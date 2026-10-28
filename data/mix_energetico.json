@@ -14,7 +14,7 @@
   "observations": [
     {
       "period": "2024-06",
-      "gas": 6.14,
+      "gas": 6.13,
       "solare": 3.2,
       "idro": 5.63,
       "eolico": 1.32,
@@ -23,7 +23,7 @@
     },
     {
       "period": "2024-07",
-      "gas": 9.83,
+      "gas": 9.8,
       "solare": 3.81,
       "idro": 5.48,
       "eolico": 1.19,
@@ -32,27 +32,27 @@
     },
     {
       "period": "2024-08",
-      "gas": 9.61,
+      "gas": 9.62,
       "solare": 3.41,
-      "idro": 3.85,
+      "idro": 3.86,
       "eolico": 0.91,
       "altre_rinnovabili": 0.92,
-      "altre_fossili": 2.08
+      "altre_fossili": 2.09
     },
     {
       "period": "2024-09",
-      "gas": 8.57,
+      "gas": 8.58,
       "solare": 2.47,
-      "idro": 3.48,
+      "idro": 3.47,
       "eolico": 1.61,
       "altre_rinnovabili": 0.81,
       "altre_fossili": 1.83
     },
     {
       "period": "2024-10",
-      "gas": 7.62,
+      "gas": 7.63,
       "solare": 1.7,
-      "idro": 4.71,
+      "idro": 4.72,
       "eolico": 1.36,
       "altre_rinnovabili": 0.85,
       "altre_fossili": 1.73
@@ -71,7 +71,7 @@
       "gas": 9.87,
       "solare": 1.12,
       "idro": 2.05,
-      "eolico": 2.61,
+      "eolico": 2.62,
       "altre_rinnovabili": 0.71,
       "altre_fossili": 1.75
     },
@@ -79,8 +79,8 @@
       "period": "2025-01",
       "gas": 10.28,
       "solare": 1.11,
-      "idro": 2.1,
-      "eolico": 2.55,
+      "idro": 2.09,
+      "eolico": 2.54,
       "altre_rinnovabili": 0.45,
       "altre_fossili": 1.79
     },
@@ -98,40 +98,40 @@
       "gas": 8.69,
       "solare": 2.6,
       "idro": 1.94,
-      "eolico": 2.22,
+      "eolico": 2.21,
       "altre_rinnovabili": 0.62,
-      "altre_fossili": 1.63
+      "altre_fossili": 1.62
     },
     {
       "period": "2025-04",
-      "gas": 5.53,
+      "gas": 5.54,
       "solare": 3.43,
-      "idro": 2.72,
-      "eolico": 1.91,
+      "idro": 2.71,
+      "eolico": 1.92,
       "altre_rinnovabili": 0.62,
       "altre_fossili": 1.61
     },
     {
       "period": "2025-05",
-      "gas": 4.27,
+      "gas": 4.26,
       "solare": 3.91,
       "idro": 3.88,
       "eolico": 1.86,
       "altre_rinnovabili": 0.67,
-      "altre_fossili": 1.66
+      "altre_fossili": 1.67
     },
     {
       "period": "2025-06",
-      "gas": 6.97,
+      "gas": 6.95,
       "solare": 4.4,
-      "idro": 3.63,
+      "idro": 3.64,
       "eolico": 1.21,
       "altre_rinnovabili": 0.79,
       "altre_fossili": 1.52
     },
     {
       "period": "2025-07",
-      "gas": 8.95,
+      "gas": 8.97,
       "solare": 4.26,
       "idro": 3.04,
       "eolico": 1.82,
@@ -143,8 +143,8 @@
       "gas": 6.96,
       "solare": 4.04,
       "idro": 2.59,
-      "eolico": 1.48,
-      "altre_rinnovabili": 0.49,
+      "eolico": 1.49,
+      "altre_rinnovabili": 0.5,
       "altre_fossili": 1.6
     },
     {
@@ -154,11 +154,11 @@
       "idro": 2.58,
       "eolico": 1.24,
       "altre_rinnovabili": 0.6,
-      "altre_fossili": 1.65
+      "altre_fossili": 1.64
     },
     {
       "period": "2025-10",
-      "gas": 8.44,
+      "gas": 8.46,
       "solare": 2.48,
       "idro": 1.94,
       "eolico": 2.31,
@@ -188,7 +188,7 @@
       "gas": 13.27,
       "solare": 1.28,
       "idro": 1.72,
-      "eolico": 2.99,
+      "eolico": 2.98,
       "altre_rinnovabili": 0.18,
       "altre_fossili": 1.62
     },
@@ -197,40 +197,40 @@
       "gas": 9.12,
       "solare": 1.98,
       "idro": 1.81,
-      "eolico": 2.75,
+      "eolico": 2.76,
       "altre_rinnovabili": 0.32,
       "altre_fossili": 1.46
     },
     {
       "period": "2026-03",
-      "gas": 7.98,
+      "gas": 7.97,
       "solare": 2.87,
       "idro": 1.85,
-      "eolico": 1.94,
+      "eolico": 1.93,
       "altre_rinnovabili": 0.62,
       "altre_fossili": 1.54
     },
     {
       "period": "2026-04",
-      "gas": 5.3,
+      "gas": 5.31,
       "solare": 3.7,
       "idro": 2.23,
-      "eolico": 1.92,
+      "eolico": 1.93,
       "altre_rinnovabili": 0.38,
       "altre_fossili": 1.49
     },
     {
       "period": "2026-05",
-      "gas": 5.47,
+      "gas": 5.46,
       "solare": 4.12,
       "idro": 2.52,
       "eolico": 2.12,
-      "altre_rinnovabili": 0.44,
+      "altre_rinnovabili": 0.43,
       "altre_fossili": 1.49
     },
     {
       "period": "2026-06",
-      "gas": 7.96,
+      "gas": 7.94,
       "solare": 4.45,
       "idro": 2.78,
       "eolico": 1.17,

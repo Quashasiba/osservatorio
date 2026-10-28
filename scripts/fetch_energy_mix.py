@@ -10,9 +10,11 @@ transparency@entsoe.eu).
 
 Strategia:
   1. Leggi il JSON corrente per scoprire l'ultimo mese già presente.
-  2. Calcola il range da scaricare: dal mese dopo l'ultimo già salvato
-     fino al mese SCORSO (il mese corrente non è ancora completo).
-     Se il JSON è vuoto, fai backfill degli ultimi 24 mesi.
+  2. Calcola il range da scaricare: da 2 mesi prima dell'ultimo già salvato
+     (per raccogliere le revisioni ENTSO-E) fino al mese SCORSO (il mese
+     corrente non è ancora completo). Se il JSON è vuoto, backfill degli
+     ultimi 24 mesi; con ENTSOE_FULL_REFRESH=true (lancio manuale del
+     workflow) riscarica tutto lo storico presente.
   3. ENTSO-E permette query massimo 1 anno alla volta per A75 → chunko
      in finestre annuali.
   4. Parse XML: per ogni TimeSeries (= una fonte = un PSR_TYPE),
@@ -198,6 +200,11 @@ def main() -> int:
     # Backfill iniziale: 24 mesi indietro se JSON vuoto
     if not last_month:
         start_target = date(today.year - 2, today.month, 1)
+    elif os.environ.get("ENTSOE_FULL_REFRESH") == "true":
+        # Ricalcolo completo dello storico (lancio manuale del workflow):
+        # riallinea tutti i mesi alle revisioni ENTSO-E e all'ora di Roma.
+        fy, fm = map(int, min(obs_by_period).split("-"))
+        start_target = date(fy, fm, 1)
     else:
         # Riparti da 2 mesi PRIMA dell'ultimo salvato: ENTSO-E rivede i dati
         # retroattivamente, così gli ultimi mesi vengono ricontrollati e

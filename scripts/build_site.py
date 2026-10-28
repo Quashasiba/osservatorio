@@ -133,7 +133,9 @@ def render_chart(fig: go.Figure, div_id: str, static: bool) -> str:
 def chart_bev(data: dict) -> str:
     from datetime import timedelta
     # Ultimi 24 mesi: due cicli annuali completi, comparabili stagione-stagione.
-    obs = data["observations"][-24:]
+    # Solo dati ufficiali: i mesi 'estimated' (ricostruzioni fino a ottobre
+    # 2024) non vengono disegnati.
+    obs = [o for o in data["observations"][-24:] if not o.get("estimated")]
     periods = [datetime.strptime(o["period"], "%Y-%m").replace(day=15) for o in obs]
     regs = [o["registrations"] for o in obs]
     shares = [o.get("market_share_pct") for o in obs]
@@ -151,7 +153,9 @@ def chart_bev(data: dict) -> str:
     fig.add_trace(go.Scatter(
         x=periods, y=shares, name="Market share %",
         mode="lines+markers", yaxis="y2",
-        line=dict(color=COLOR_BEV_LINE, width=2.5),
+        # Spline morbida invece di segmenti; smoothing contenuto perché valori
+        # alti farebbero "sforare" la curva sopra/sotto i punti reali.
+        line=dict(color=COLOR_BEV_LINE, width=2.5, shape="spline", smoothing=0.8),
         marker=dict(size=7),
         cliponaxis=False,
         hovertemplate="<b>%{x|%b %Y}</b><br>%{y}%% market share<extra></extra>",
@@ -184,13 +188,16 @@ def chart_payments(data: dict) -> str:
     # Ultimi 10 anni (è cadenza annuale, non c'è "ultimi 12 mesi" possibile)
     obs = data["observations"][-10:]
     years_dt = [datetime(o["year"], 1, 1) for o in obs]
-    cashless = [o["cashless_pct"] for o in obs]
-    cash = [o["cash_pct"] for o in obs]
+    # Solo valori pubblicati da PoliMi: dove manca (cashless 2018, contante
+    # prima del 2024) il punto è None. La linea cashless unisce il buco, il
+    # marker manca; il contante parte dal 2024, primo anno pubblicato.
+    cashless = [o.get("cashless_pct") for o in obs]
+    cash = [o.get("cash_pct") for o in obs]
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=years_dt, y=cashless, name="Pagamenti elettronici",
-        mode="lines+markers",
+        mode="lines+markers", connectgaps=True,
         line=dict(color=COLOR_PAY, width=3),
         marker=dict(size=9),
         cliponaxis=False,
@@ -798,7 +805,9 @@ def table_bev(d: dict) -> str:
 
 def table_payments(d: dict) -> str:
     obs = d["observations"][-10:]
-    rows = [[str(o["year"]), f"{o['cashless_pct']:.0f}%", f"{o['cash_pct']:.0f}%"]
+    def pct(v):
+        return f"{v:.0f}%" if v is not None else "—"
+    rows = [[str(o["year"]), pct(o.get("cashless_pct")), pct(o.get("cash_pct"))]
             for o in reversed(obs)]
     return table_html(["Anno", "Cashless", "Contanti"], rows)
 
@@ -1034,7 +1043,7 @@ def main() -> int:
             "chart_html": chart_desertification(desert_data),
             "headline_html": headline_desert(desert_data),
             "citation_html": citation_html(
-                '<a href="https://www.firstcisl.it/tag/osservatorio-desertificazione-bancaria/" target="_blank" rel="noopener">First CISL</a> (su dati Banca d\'Italia / ISTAT)',
+                '<a href="https://www.bancaditalia.it/pubblicazioni/banche-istfin/" target="_blank" rel="noopener">Banca d\'Italia</a> (serie storica) e <a href="https://www.firstcisl.it/tag/osservatorio-desertificazione-bancaria/" target="_blank" rel="noopener">First CISL</a> (aggiornamento annuale, comuni senza sportello)',
                 "aggiornamento annuale (fine gennaio)", str(desert_data["observations"][-1]["year"]),
             ),
             "table_html": table_desert(desert_data),
@@ -1045,7 +1054,7 @@ def main() -> int:
             "category": "Finanza · abitudini",
             "updated_at": pay_data.get("updated_at", ""),
             "title": "Cashless vs contanti",
-            "subtitle": "Quota dei consumi delle famiglie italiane regolata con strumenti elettronici o in contante.",
+            "subtitle": "Quota dei consumi delle famiglie italiane regolata con strumenti elettronici o in contante. La quota del contante è pubblicata dal 2024; gli anni senza dato ufficiale non sono stimati.",
             "chart_html": chart_payments(pay_data),
             "headline_html": headline_payments(pay_data),
             "citation_html": citation_html(

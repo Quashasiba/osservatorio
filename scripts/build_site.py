@@ -889,8 +889,11 @@ def expected_next(key: str, obs: list[dict]) -> tuple[str, date, int]:
         return str(year), date(year + 1, 3, 12), 30
     if key == "desert":     # First CISL: report annuale a fine gennaio
         return str(year), date(year + 1, 1, 31), 30
-    if key == "auto_milano":  # ACI Autoritratto: novembre dell'anno dopo
-        return str(year), date(year + 1, 11, 1), 45
+    if key == "auto_milano":
+        # ACI Autoritratto: data variabile nell'anno dopo (2023 → giugno 2024,
+        # 2024 → novembre 2025, 2025 → giugno 2026). Atteso da giugno, in
+        # ritardo solo dopo novembre.
+        return str(year), date(year + 1, 6, 1), 183
     raise KeyError(key)
 
 
@@ -1067,7 +1070,7 @@ def main() -> int:
             "headline_html": headline_auto_milano(auto_data),
             "citation_html": citation_html(
                 '<a href="https://www.aci.it/laci/studi-e-ricerche/dati-e-statistiche/open-data.html" target="_blank" rel="noopener">ACI Autoritratto</a>',
-                "aggiornamento annuale (autunno)", str(auto_data["observations"][-1]["year"]),
+                "aggiornamento annuale", str(auto_data["observations"][-1]["year"]),
             ),
         },
     ]

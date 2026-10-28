@@ -1,16 +1,20 @@
 """
 Fetch dati parco auto provincia di Milano da ACI Autoritratto.
 
-ACI pubblica l'Autoritratto a fine anno (novembre tipicamente) con i dati
-del parco circolante al 31 dicembre dell'anno precedente.
+ACI pubblica l'Autoritratto con i dati del parco circolante al 31 dicembre
+dell'anno precedente. La data non è fissa: il 2023 a giugno 2024, il 2024 a
+novembre 2025, il 2025 a giugno 2026.
 
 Strategia:
   1. Scarica la pagina indice https://www.aci.it/.../open-data.html
-  2. Trova il link al file "Autoritratto-YYYY-OD.zip" più recente
+  2. Trova il link all'archivio "Autoritratto-YYYY-OD" più recente (.zip o
+     .rar: il 2025 è uscito come RAR e lo script, che cercava solo .zip, non
+     l'aveva visto)
   3. Estrai l'anno dal nome del file
-  4. Se è già nel JSON, esci
-  5. Altrimenti scarica lo ZIP, trova il file Parco_veicolare_YYYY.ods
-     (ricorsivamente nei sub-ZIP, la struttura varia anno per anno)
+  4. Scarica e scompatta l'archivio, poi trova il file Parco_veicolare_YYYY.ods
+     (ricorsivamente negli archivi annidati, la struttura varia anno per anno).
+     I RAR si estraggono con bsdtar (libarchive): su macOS c'è già, su
+     Ubuntu è il pacchetto libarchive-tools (installato dal workflow).
   6. Legge i 3 fogli per alimentazione × provincia:
        - AVBenz_Provincia (benzina pura)
        - AVGasolio_Prov (gasolio puro)
@@ -27,7 +31,8 @@ from __future__ import annotations
 import json
 import os
 import re
-import io
+import shutil
+import subprocess
 import sys
 import tempfile
 import zipfile
@@ -50,7 +55,8 @@ def find_latest_autoritratto() -> tuple[int, str] | None:
     # I link sono nella forma:
     #   https://aci.gov.it/app/uploads/YYYY/MM/Autoritratto-YYYY-OD.zip
     #   https://aci.gov.it/app/uploads/YYYY/MM/Autoritratto_YYYY_OD-1.zip
-    pattern = r'(https?://aci\.gov\.it/[^"\']*Autoritratto[_\-]?(\d{4})[_\-][^"\']*\.zip)'
+    #   https://aci.gov.it/app/uploads/YYYY/MM/Autoritratto-YYYY-OD.rar
+    pattern = r'(https?://aci\.gov\.it/[^"\']*Autoritratto[_\-]?(\d{4})[_\-][^"\']*\.(?:zip|rar))'
     matches = re.findall(pattern, r.text, re.IGNORECASE)
     if not matches:
         return None
@@ -59,42 +65,55 @@ def find_latest_autoritratto() -> tuple[int, str] | None:
     return int(latest[1]), latest[0]
 
 
-def find_parco_ods(zip_bytes: bytes, year: int, depth: int = 0) -> bytes | None:
-    """Trova ricorsivamente il file Parco_veicolare_YYYY.ods (o variante) nello ZIP.
+def extract_archive(archive: Path, dest: Path) -> None:
+    """Scompatta uno .zip (zipfile) o .rar (bsdtar) in `dest`."""
+    if archive.suffix.lower() == ".zip":
+        with zipfile.ZipFile(archive) as zf:
+            zf.extractall(dest)
+        return
+    bsdtar = shutil.which("bsdtar")
+    if not bsdtar:
+        raise RuntimeError("bsdtar non trovato: serve per i RAR "
+                           "(Ubuntu: apt-get install libarchive-tools)")
+    subprocess.run([bsdtar, "-xf", str(archive), "-C", str(dest)], check=True)
 
-    Negli anni 2020-2023 il file ODS sta direttamente nel ZIP esterno.
-    Nel 2019 e dal 2024 sta dentro un sub-ZIP. Va gestito uniformemente.
+
+def find_parco_ods(root: Path, year: int, depth: int = 0) -> bytes | None:
+    """Trova ricorsivamente il file Parco_veicolare_YYYY.ods (o variante) sotto `root`.
+
+    A seconda dell'anno il file ODS sta direttamente nell'archivio esterno o
+    dentro un sotto-archivio: quelli annidati vengono scompattati a loro volta.
     """
     if depth > 3:
         return None
-    zf = zipfile.ZipFile(io.BytesIO(zip_bytes))
+    files = sorted(f for f in root.rglob("*") if f.is_file())
 
     # Pattern preferiti (basename only, no path)
     preferred_patterns = [
         rf"^Parco_veicolare_{year}\.ods$",
         rf"^Autoritratto{year}_Parco[_\s]veicolare\.ods$",
     ]
-    for name in zf.namelist():
-        base = os.path.basename(name)
+    for f in files:
         for p in preferred_patterns:
-            if re.match(p, base, re.IGNORECASE):
-                return zf.open(name).read()
+            if re.match(p, f.name, re.IGNORECASE):
+                return f.read_bytes()
 
     # Fallback: qualsiasi ods con "parco" + "veicolare" nel basename ma
     # senza "vendite" o "mondo" (per evitare il file globale "Vendite nel Mondo")
-    for name in zf.namelist():
-        base = os.path.basename(name).lower()
+    for f in files:
+        base = f.name.lower()
         if (base.endswith(".ods") and "parco" in base and "veicolare" in base
                 and "vendite" not in base and "mondo" not in base):
-            return zf.open(name).read()
+            return f.read_bytes()
 
-    # Scendi nei sub-zip
-    for name in zf.namelist():
-        if name.lower().endswith(".zip"):
-            sub = zf.open(name).read()
-            r = find_parco_ods(sub, year, depth + 1)
-            if r:
-                return r
+    # Scendi negli archivi annidati
+    for f in files:
+        if f.suffix.lower() in (".zip", ".rar"):
+            sub = Path(tempfile.mkdtemp(dir=root))
+            extract_archive(f, sub)
+            found = find_parco_ods(sub, year, depth + 1)
+            if found:
+                return found
     return None
 
 
@@ -154,15 +173,21 @@ def main() -> int:
     # Anche se l'anno è già nel JSON si riestrae comunque (upsert): ACI a
     # volte ripubblica il file con correzioni. Costa un download in più al
     # mese, ma elimina ogni intervento manuale.
-    print(f"→ Scarico ZIP per anno {year}…")
+    print(f"→ Scarico archivio per anno {year}…")
     r = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT)
     r.raise_for_status()
     print(f"  Scaricati {len(r.content) // 1024} KB")
 
     print("→ Estraggo il file Parco_veicolare ODS…")
-    ods = find_parco_ods(r.content, year)
+    with tempfile.TemporaryDirectory() as tmp:
+        archive = Path(tmp) / Path(url).name
+        archive.write_bytes(r.content)
+        extracted = Path(tmp) / "x"
+        extracted.mkdir()
+        extract_archive(archive, extracted)
+        ods = find_parco_ods(extracted, year)
     if not ods:
-        print("Non sono riuscito a trovare il file ODS atteso nello ZIP.", file=sys.stderr)
+        print("Non sono riuscito a trovare il file ODS atteso nell'archivio.", file=sys.stderr)
         return 1
 
     print("→ Estraggo i dati Milano provincia…")

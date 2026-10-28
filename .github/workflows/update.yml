@@ -28,9 +28,9 @@ on:
     - cron: "0 9 31 1 *"
     - cron: "0 9 7 2 *"
     #
-    # 4) ACI pubblica l'Autoritratto annuale (parco veicolare) a novembre.
-    #    Run extra il 15 e il 22 dicembre per cogliere il dato del nuovo anno
-    #    pubblicato qualche settimana prima, con un retry a una settimana.
+    # 4) ACI pubblica l'Autoritratto annuale (parco veicolare) in data
+    #    variabile (giugno o novembre): lo coprono i run mensili. Run extra il
+    #    15 e il 22 dicembre come ultimo controllo prima di fine anno.
     - cron: "0 9 15,22 12 *"
 
   workflow_dispatch: # Permette di lanciarlo manualmente dal tab Actions
@@ -86,6 +86,11 @@ jobs:
         run: python scripts/fetch_energy_mix.py 2> >(tee "$RUNNER_TEMP/energy.err" >&2)
         env:
           ENTSOE_API_TOKEN: ${{ secrets.ENTSOE_API_TOKEN }}
+        continue-on-error: true
+
+      # bsdtar per scompattare l'Autoritratto, che dal 2025 esce come .rar
+      - name: Installa bsdtar
+        run: command -v bsdtar || (sudo apt-get update -qq && sudo apt-get install -y -qq libarchive-tools)
         continue-on-error: true
 
       - name: Fetch dati parco auto Milano (ACI Autoritratto)

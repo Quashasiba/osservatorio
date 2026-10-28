@@ -1,6 +1,6 @@
 {
   "source": "UNRAE",
-  "note": "Dati 2025-2026 ufficiali UNRAE. Dati 2018-2024 sono stime mensili ricostruite da totali annuali noti applicando un pattern di stagionalità tipico del mercato auto italiano (agosto basso, dicembre alto). Il fetcher mensile sovrascrive ogni nuovo periodo con il dato ufficiale appena UNRAE lo pubblica.",
+  "note": "Dati da novembre 2024 ufficiali UNRAE, verificati uno per uno sui comunicati mensili il 2026-10-28 (unità dichiarate dal comunicato se presenti, altrimenti totale del mese × quota BEV). Dati 2018 - ottobre 2024 sono stime mensili ricostruite da totali annuali noti applicando un pattern di stagionalità tipico del mercato auto italiano (agosto basso, dicembre alto), marcate 'estimated'.",
   "updated_at": "2026-10-28",
   "observations": [
     {
@@ -497,89 +497,87 @@
     },
     {
       "period": "2024-11",
-      "registrations": 5417,
-      "market_share_pct": 4.4,
-      "estimated": true
+      "registrations": 6585,
+      "market_share_pct": 5.3
     },
     {
       "period": "2024-12",
-      "registrations": 9479,
-      "market_share_pct": 4.9,
-      "estimated": true
+      "registrations": 5814,
+      "market_share_pct": 5.5
     },
     {
       "period": "2025-01",
-      "registrations": 4900,
+      "registrations": 6685,
       "market_share_pct": 5.0
     },
     {
       "period": "2025-02",
-      "registrations": 5400,
-      "market_share_pct": 4.8
+      "registrations": 6896,
+      "market_share_pct": 5.0
     },
     {
       "period": "2025-03",
-      "registrations": 8950,
-      "market_share_pct": 5.2
+      "registrations": 9300,
+      "market_share_pct": 5.4
     },
     {
       "period": "2025-04",
-      "registrations": 6670,
+      "registrations": 6676,
       "market_share_pct": 4.8
     },
     {
       "period": "2025-05",
-      "registrations": 5200,
-      "market_share_pct": 4.0
+      "registrations": 7109,
+      "market_share_pct": 5.1
     },
     {
       "period": "2025-06",
-      "registrations": 5800,
-      "market_share_pct": 4.2
+      "registrations": 7931,
+      "market_share_pct": 6.0
     },
     {
       "period": "2025-07",
-      "registrations": 5500,
-      "market_share_pct": 4.1
+      "registrations": 5806,
+      "market_share_pct": 4.9
     },
     {
       "period": "2025-08",
-      "registrations": 3050,
-      "market_share_pct": 4.0
+      "registrations": 3296,
+      "market_share_pct": 4.9
     },
     {
       "period": "2025-09",
-      "registrations": 6500,
-      "market_share_pct": 4.5
+      "registrations": 7094,
+      "market_share_pct": 5.6
     },
     {
       "period": "2025-10",
-      "registrations": 7200,
-      "market_share_pct": 4.5
+      "registrations": 6291,
+      "market_share_pct": 5.0
     },
     {
       "period": "2025-11",
-      "registrations": 6800,
-      "market_share_pct": 4.3
+      "registrations": 15304,
+      "market_share_pct": 12.2
     },
     {
       "period": "2025-12",
-      "registrations": 7500,
-      "market_share_pct": 4.5
+      "registrations": 12078,
+      "market_share_pct": 11.0
     },
     {
       "period": "2026-01",
-      "registrations": 11500,
-      "market_share_pct": 7.5
+      "registrations": 9446,
+      "market_share_pct": 6.6
     },
     {
       "period": "2026-02",
-      "registrations": 10800,
-      "market_share_pct": 7.2
+      "registrations": 12572,
+      "market_share_pct": 7.9
     },
     {
       "period": "2026-03",
-      "registrations": 15940,
+      "registrations": 16137,
       "market_share_pct": 8.6
     },
     {

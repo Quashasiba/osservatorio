@@ -708,11 +708,20 @@ def headline_bev(d: dict) -> str:
     last_y, last_m = last["period"].split("-")
     yoy_period = f"{int(last_y) - 1}-{last_m}"
     yoy = next((o for o in obs if o["period"] == yoy_period), None)
-    parts = [f"<b>{period}</b> · <b>{_fmt_dec(last['market_share_pct'])}%</b> di quota di mercato"]
+    # KPI in grande: la quota di mercato (il dato più significativo); le
+    # immatricolazioni assolute vanno nel contesto.
+    parts = [f"quota di mercato BEV a <b>{period}</b>"]
+    if yoy:
+        d_pp = last["market_share_pct"] - yoy["market_share_pct"]
+        cls, sign = ("pos", "+") if d_pp > 0 else ("neg", "−" if d_pp < 0 else "")
+        parts[0] += (f' (<span class="{cls}">{sign}{_fmt_dec(abs(d_pp))} pp</span>'
+                     f" sull'anno prima)")
+    regs = f"<b>{_fmt_int(last['registrations'])}</b> auto elettriche immatricolate"
     if yoy:
         delta = (last["registrations"] - yoy["registrations"]) / yoy["registrations"] * 100
-        parts.append(f"{_delta_span(delta, ' YoY')} sulle immatricolazioni")
-    return headline_html(_fmt_int(last["registrations"]), "BEV", " · ".join(parts))
+        regs += f" ({_delta_span(delta, ' YoY')})"
+    parts.append(regs)
+    return headline_html(_fmt_dec(last["market_share_pct"]), "%", " · ".join(parts))
 
 
 def headline_mobile(d: dict) -> str:

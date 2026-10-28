@@ -59,11 +59,36 @@ MESI = {
 
 
 # Comunicati da scartare perché NON sono il mensile italiano sulle immatricolazioni.
-# "Mercato vetture europeo", "Mercato auto europeo", "Mercato europeo", "Europa: ...".
-# Se sfugge, il comunicato europeo (che esce prima dell'italiano in elenco)
-# "occupa" il periodo in periodi_visti e il mensile italiano viene saltato.
-RE_EUROPA = re.compile(r"(mercato\s+(?:\w+\s+)?europ|^\s*europa\s*:)", re.IGNORECASE)
-RE_NON_MENSILE = re.compile(r"(usat|noleggio)", re.IGNORECASE)
+# "europ" all'INIZIO del titolo (primi 50 caratteri). I titoli europei
+# variano troppo per un pattern stretto ("Mercato vetture europeo", "Mercato
+# auto stagnante in Europa", "Europa, mercato auto...", "Immatricolazioni
+# vetture in Europa: ...") ma citano sempre l'Europa entro i primi ~40
+# caratteri; quelli italiani possono citarla più avanti ("...Trump e
+# automotive europeo...", "...unica tra i grandi mercati europei...").
+# Se un europeo sfugge, essendo pubblicato dopo l'italiano compare prima in
+# elenco, "occupa" il periodo in periodi_visti e il mensile italiano viene
+# saltato.
+RE_EUROPA = re.compile(r"^.{0,50}europ", re.IGNORECASE)
+# Usato e noleggio a lungo termine. Non un generico "noleggio": il mensile
+# italiano di febbraio 2026 era intitolato "...Senza la spinta del noleggio
+# a breve..." e veniva scartato.
+RE_NON_MENSILE = re.compile(r"auto\s+usata|lungo\s+termine", re.IGNORECASE)
+
+# Quota BEV: percentuale dopo "elettriche pure"/"BEV", senza attraversare
+# altre alimentazioni ("BEV in calo, PHEV in salita, ECV al 10,5%").
+# Lookbehind (?<!\d): senza, "10,1%" veniva letto "0,1%".
+RE_QUOTA = re.compile(
+    r"(?:elettriche pure|BEV)(?:(?!PHEV|ECV|ibrid)[^%]){0,80}?(?<!\d)(\d{1,2}[,\.]\d+)\s*%",
+    re.IGNORECASE,
+)
+# Totale del mese; esclusi i numeri di confronto ("285.000 unità perse
+# rispetto al 2019", "40.000 vetture in meno").
+RE_TOTALE = re.compile(
+    r"\b(\d{1,3}(?:\.\d{3}){1,2})\s+(?:nuove\s+)?"
+    r"(?:immatricolazioni|autovetture|targhe|unità|automobili)"
+    r"(?!\s+(?:in\s+meno|in\s+più|perse|di\s+differenza))",
+    re.IGNORECASE,
+)
 
 
 def comunicato_links(html: str) -> list[str]:
@@ -81,47 +106,62 @@ def comunicato_links(html: str) -> list[str]:
     return links
 
 
-def valuta_comunicato(html: str) -> dict | None:
-    """Dato l'HTML di un singolo comunicato, ritorna l'osservazione BEV se è il
-    comunicato mensile italiano sulle immatricolazioni, altrimenti None."""
+def identifica_mensile(html: str) -> tuple[str, re.Match, str] | None:
+    """(periodo, match del periodo, testo) se la pagina è un comunicato
+    mensile italiano sulle immatricolazioni (non Europa, usato, noleggio)."""
     soup = BeautifulSoup(html, "html.parser")
     titolo_el = soup.find(["h1", "h2"])
     titolo = titolo_el.get_text(" ", strip=True) if titolo_el else ""
     text = soup.get_text(" ", strip=True)
 
     pm = re.search(r"Periodo di riferimento dei dati:\s*(\w+)\s+(\d{4})", text)
-    if not pm:
+    if not pm or pm.group(1).lower() not in MESI:
         return None
-    mese_nome = pm.group(1).lower()
-    if mese_nome not in MESI:
-        return None
-    periodo = f"{int(pm.group(2))}-{MESI[mese_nome]:02d}"
-
-    # Scarta Europa, auto usata, noleggio: non sono il mensile italiano nuovo.
     if RE_EUROPA.search(titolo) or RE_NON_MENSILE.search(titolo):
         return None
+    return f"{int(pm.group(2))}-{MESI[pm.group(1).lower()]:02d}", pm, text
 
-    # Quota di mercato BEV. Quantificatore lazy + lookbehind: la versione greedy
-    # senza lookbehind mangiava le cifre iniziali della quota ("10,1%" → "0,1%").
-    quota_m = re.search(
-        r"(?:elettriche pure|BEV)[^%]{0,80}?(?<!\d)(\d{1,2}[,\.]\d+)\s*%",
-        text, re.IGNORECASE,
-    )
+
+def valuta_comunicato(html: str) -> dict | None:
+    """Dato l'HTML di un singolo comunicato, ritorna l'osservazione BEV se è il
+    comunicato mensile italiano sulle immatricolazioni, altrimenti None."""
+    ident = identifica_mensile(html)
+    if ident is None:
+        return None
+    periodo, pm, text = ident
+    mese_nome = pm.group(1).lower()
+
+    # Quota di mercato BEV: la prima che non sia riferita a un ALTRO mese
+    # ("scende dal 5,5% di dicembre al 5,0% di gennaio"), all'anno prima
+    # ("rispetto al 3,4% di luglio 2024", "dello stesso mese del 2025") o
+    # all'intero anno.
+    quota = None
+    for quota_m in RE_QUOTA.finditer(text):
+        dopo = text[quota_m.end():quota_m.end() + 40].lower()
+        rif = re.match(r"\s*(?:di|del|dello|a|in|nel)\s+(\w+)(?:\s+(\d{4}))?", dopo)
+        if rif and rif.group(1) in MESI and (rif.group(1) != mese_nome
+                                             or rif.group(2) not in (None, pm.group(2))):
+            continue
+        if re.match(r"\s*(?:dello|nello)\s+stesso", dopo):
+            continue
+        # Dato annuale/cumulato ("nel 2024 quota BEV al 4,2%", nei comunicati
+        # di dicembre viene prima del mensile).
+        prima = text[max(0, quota_m.start() - 40):quota_m.start()].lower()
+        if re.search(r"nel\s+20\d\d|nell[’']anno|nei\s+12\s+mesi|nel\s+cumulato", prima):
+            continue
+        quota = float(quota_m.group(1).replace(",", "."))
+        break
+
     # Totale immatricolazioni del mese (numero italiano con separatore migliaia).
     # Si prende il PRIMO numero in range plausibile, non il primo in assoluto:
     # da settembre 2026 il comunicato apre con il cumulato ("Nei primi 9 mesi
     # immatricolate 1.268.964 unità") e il mensile arriva solo dopo.
     totale = None
-    for tot_m in re.finditer(
-        r"\b(\d{1,3}(?:\.\d{3}){1,2})\s+(?:nuove\s+)?"
-        r"(?:immatricolazioni|autovetture|targhe|unità)",
-        text, re.IGNORECASE,
-    ):
+    for tot_m in RE_TOTALE.finditer(text):
         n = int(tot_m.group(1).replace(".", ""))
         if TOTALE_MIN <= n <= TOTALE_MAX:
             totale = n
             break
-    quota = float(quota_m.group(1).replace(",", ".")) if quota_m else None
 
     # Serve sia la quota sia un totale mensile plausibile, altrimenti non è il
     # comunicato che cerchiamo (o non è parsabile).
@@ -129,12 +169,13 @@ def valuta_comunicato(html: str) -> dict | None:
         return None
 
     # Unità BEV esplicite se il comunicato le dichiara da qualche parte
-    # (es. "quota del 10,1% con 14.894 unità"); altrimenti derivate da
+    # (es. "quota del 10,1% con 14.894 unità", "all'8,6% con 16.137
+    # immatricolazioni"); altrimenti derivate da
     # totale × quota. Il valore esplicito è quello ufficiale, preferiscilo.
     # Il filtro di coerenza (entro il 10% dal derivato) evita di agganciare
     # numeri che non c'entrano (cumulati annui, altre alimentazioni, ecc.).
     bev = round(totale * quota / 100)
-    for unita_m in re.finditer(r"(\d{1,3}(?:\.\d{3})+)\s+unità", text):
+    for unita_m in re.finditer(r"(\d{1,3}(?:\.\d{3})+)\s+(?:unità|immatricolazioni)", text):
         esplicito = int(unita_m.group(1).replace(".", ""))
         if 0.9 * bev <= esplicito <= 1.1 * bev:
             bev = esplicito
@@ -232,7 +273,16 @@ def main() -> int:
             continue
 
         obs = valuta_comunicato(page.text)
-        if obs is None or obs["period"] in periodi_visti:
+        if obs is None:
+            # Mensile italiano riconosciuto ma non leggibile: errore visibile
+            # (prima veniva saltato in silenzio e il mese andava inserito a mano).
+            ident = identifica_mensile(page.text)
+            if ident and ident[0] not in periodi_visti:
+                print(f"  ✗ Comunicato mensile {ident[0]} non leggibile "
+                      f"(quota o totale non trovati): {href}", file=sys.stderr)
+                errori += 1
+            continue
+        if obs["period"] in periodi_visti:
             continue
         periodi_visti.add(obs["period"])
 

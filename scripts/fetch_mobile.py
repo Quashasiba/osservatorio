@@ -7,16 +7,17 @@ sulle SIM Human per operatore.
 
 Strategia:
   1. Scarica la pagina indice dei comunicati AGCOM
-  2. Cerca il link "Osservatorio sulle comunicazioni" più recente
-  3. Apre il comunicato e cerca il blocco "sim human"
+  2. Raccoglie i link "Osservatorio sulle comunicazioni" in pagina (di solito gli ultimi 2)
+  3. Apre ciascun comunicato e cerca il blocco "segmento delle sim human"
   4. Estrae le quote dei principali operatori (TIM, Vodafone+Fastweb, WindTre, Iliad)
   5. Determina il trimestre di riferimento dal numero dell'osservatorio
      (1/AAAA → Q4 dell'anno AAAA-1, 2/AAAA → Q1, 3/AAAA → Q2, 4/AAAA → Q3)
-  6. Aggiunge al JSON se è un nuovo trimestre
+  6. Aggiunge al JSON i trimestri nuovi, corregge quelli già presenti (upsert)
 
-Lo script è tollerante: AGCOM a volte risponde 503/blocca richieste, in quel
-caso esce con success (no-op) e ritenta il mese successivo. Quando trova nuovi
-dati sovrascrive eventuali stime ('estimated': true) presenti per quel trimestre.
+Se AGCOM non risponde o il testo non è parsabile lo script esce con codice 1
+(il workflow prosegue ma segnala il fallimento) e ritenta al run successivo.
+Quando trova nuovi dati sovrascrive eventuali stime ('estimated': true)
+presenti per quel trimestre.
 """
 from __future__ import annotations
 
@@ -50,16 +51,20 @@ OSS_TO_QUARTER = {1: (-1, 4), 2: (0, 1), 3: (0, 2), 4: (0, 3)}
 OPERATORI = ["TIM", "Vodafone+Fastweb", "WindTre", "Iliad"]
 
 
-def find_latest_osservatorio_url() -> str | None:
-    """Cerca il link più recente all'Osservatorio nella pagina comunicati."""
+def find_osservatorio_urls() -> list[str]:
+    """Link agli Osservatori presenti nella pagina comunicati, dal più recente,
+    senza duplicati (ogni comunicato compare due volte: titolo + "Scopri di più")."""
     resp = requests.get(AGCOM_INDEX, headers=HEADERS, timeout=TIMEOUT)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
+    urls: list[str] = []
     for a in soup.find_all("a", href=True):
         text = a.get_text(" ", strip=True).lower()
         if "osservatorio sulle comunicazioni" in text:
-            return urljoin(AGCOM_INDEX, a["href"])
-    return None
+            url = urljoin(AGCOM_INDEX, a["href"])
+            if url not in urls:
+                urls.append(url)
+    return urls
 
 
 def determine_quarter(url: str, body_text: str) -> str | None:
@@ -68,8 +73,8 @@ def determine_quarter(url: str, body_text: str) -> str | None:
     Prima prova dal URL (es. ...osservatorio-sulle-comunicazioni-n1-2026 → Q4 2025).
     Fallback: prova dal testo (es. "a fine dicembre 2025" → Q4 2025).
     """
-    # Pattern URL: -nN-AAAA o -N-AAAA
-    url_m = re.search(r"osservatorio-sulle-comunicazioni-n?(\d)[-_/]?(\d{4})", url)
+    # Pattern URL: -nN-AAAA, -n-N-AAAA o -N-AAAA
+    url_m = re.search(r"osservatorio-sulle-comunicazioni-(?:n-?)?(\d)[-_/]?(\d{4})", url)
     if url_m:
         num = int(url_m.group(1))
         year = int(url_m.group(2))
@@ -96,14 +101,14 @@ def extract_human_shares(body_text: str) -> dict | None:
          il principale operatore con il 25,4%, seguito da Wind Tre (23,7%),
          da Tim (22,9%) e Iliad ... raggiunge il 15,6%"
     """
-    lower = body_text.lower()
-    idx = lower.find('sim "human"')
-    if idx == -1:
-        idx = lower.find("sim 'human'")
-    if idx == -1:
-        idx = lower.find("segmento delle sim")
-    if idx == -1:
+    # Ancora sulla frase "segmento delle sim “ human ”": un semplice
+    # 'sim "human"' agganciava prima una riga della tabella traffico dati
+    # ("per sim "human" (GB)"), finendo nella sezione TV senza operatori.
+    # Le virgolette sono tipografiche e con spazi interni, quindi regex.
+    m = re.search(r"segmento\s+delle\s+sim\s*[\"'“”‘’]?\s*human", body_text, re.IGNORECASE)
+    if not m:
         return None
+    idx = m.start()
 
     block = body_text[idx:idx + 2000]  # finestra di 2000 char dopo il marker
 
@@ -180,46 +185,59 @@ def update_observation(new_period: str, new_shares: dict) -> bool:
         data["observations"].sort(key=lambda o: o["period"])
         print(f"  ✓ aggiunto {new_period}: {new_shares}")
 
-    data["updated_at"] = date.today().isoformat()
+    # updated_at segna l'arrivo di un trimestre più recente di quelli noti
+    # (badge "Aggiornato" e ordine del feed), non le correzioni ai passati.
+    if new_period == max(o["period"] for o in data["observations"]):
+        data["updated_at"] = date.today().isoformat()
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     return True
 
 
 def main() -> int:
-    print("→ Cerco ultimo Osservatorio AGCOM...")
+    # Exit code 1 su qualsiasi fallimento: il workflow prosegue comunque
+    # (continue-on-error) ma il run finisce rosso e arriva la notifica.
+    # Prima ogni errore usciva con 0 e lo scraper è rimasto rotto per mesi
+    # senza che nessuno se ne accorgesse.
+    print("→ Cerco gli Osservatori AGCOM...")
     try:
-        url = find_latest_osservatorio_url()
-        if not url:
-            print("  ⊝ Nessun link Osservatorio trovato in homepage comunicati.")
-            return 0  # Non bloccante
+        urls = find_osservatorio_urls()
+        if not urls:
+            print("  ✗ Nessun link Osservatorio trovato in pagina comunicati.", file=sys.stderr)
+            return 1
 
-        print(f"  Osservatorio: {url}")
-        resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-        resp.raise_for_status()
-        body = BeautifulSoup(resp.text, "html.parser").get_text(" ", strip=True)
+        # Tutti quelli in pagina (di solito gli ultimi 2): così anche il
+        # trimestre precedente viene riallineato al dato ufficiale.
+        errori = 0
+        for url in urls:
+            print(f"  Osservatorio: {url}")
+            resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+            resp.raise_for_status()
+            body = BeautifulSoup(resp.text, "html.parser").get_text(" ", strip=True)
 
-        period = determine_quarter(url, body)
-        if not period:
-            print("  ⊝ Impossibile determinare il trimestre di riferimento.")
-            return 0
+            period = determine_quarter(url, body)
+            if not period:
+                print("  ✗ Impossibile determinare il trimestre di riferimento.", file=sys.stderr)
+                errori += 1
+                continue
 
-        shares = extract_human_shares(body)
-        if not shares:
-            print("  ⊝ Impossibile estrarre quote SIM Human (pattern cambiato?).")
-            return 0
+            shares = extract_human_shares(body)
+            if not shares:
+                print("  ✗ Impossibile estrarre quote SIM Human (pattern cambiato?).", file=sys.stderr)
+                errori += 1
+                continue
 
-        print(f"  Trovato {period}: {shares}")
-        update_observation(period, shares)
-        return 0
+            print(f"  Trovato {period}: {shares}")
+            try:
+                update_observation(period, shares)
+            except ValueError as e:
+                print(f"  ✗ {e}", file=sys.stderr)
+                errori += 1
+        return 1 if errori else 0
 
     except requests.RequestException as e:
-        # AGCOM a volte risponde 503 / blocca; lo script torna OK e ritenta dopo
-        print(f"  ⊝ Errore di rete (non bloccante): {e}", file=sys.stderr)
-        return 0
-    except Exception as e:
-        print(f"  ⊝ Errore imprevisto (non bloccante): {e}", file=sys.stderr)
-        return 0
+        print(f"  ✗ Errore di rete: {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

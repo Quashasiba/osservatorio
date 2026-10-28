@@ -59,7 +59,10 @@ MESI = {
 
 
 # Comunicati da scartare perché NON sono il mensile italiano sulle immatricolazioni.
-RE_EUROPA = re.compile(r"(mercato\s+(auto\s+)?europ|^\s*europa\s*:)", re.IGNORECASE)
+# "Mercato vetture europeo", "Mercato auto europeo", "Mercato europeo", "Europa: ...".
+# Se sfugge, il comunicato europeo (che esce prima dell'italiano in elenco)
+# "occupa" il periodo in periodi_visti e il mensile italiano viene saltato.
+RE_EUROPA = re.compile(r"(mercato\s+(?:\w+\s+)?europ|^\s*europa\s*:)", re.IGNORECASE)
 RE_NON_MENSILE = re.compile(r"(usat|noleggio)", re.IGNORECASE)
 
 
@@ -104,18 +107,25 @@ def valuta_comunicato(html: str) -> dict | None:
         r"(?:elettriche pure|BEV)[^%]{0,80}?(?<!\d)(\d{1,2}[,\.]\d+)\s*%",
         text, re.IGNORECASE,
     )
-    # Totale immatricolazioni del mese (numero italiano con separatore migliaia)
-    tot_m = re.search(
+    # Totale immatricolazioni del mese (numero italiano con separatore migliaia).
+    # Si prende il PRIMO numero in range plausibile, non il primo in assoluto:
+    # da settembre 2026 il comunicato apre con il cumulato ("Nei primi 9 mesi
+    # immatricolate 1.268.964 unità") e il mensile arriva solo dopo.
+    totale = None
+    for tot_m in re.finditer(
         r"\b(\d{1,3}(?:\.\d{3}){1,2})\s+(?:nuove\s+)?"
         r"(?:immatricolazioni|autovetture|targhe|unità)",
         text, re.IGNORECASE,
-    )
+    ):
+        n = int(tot_m.group(1).replace(".", ""))
+        if TOTALE_MIN <= n <= TOTALE_MAX:
+            totale = n
+            break
     quota = float(quota_m.group(1).replace(",", ".")) if quota_m else None
-    totale = int(tot_m.group(1).replace(".", "")) if tot_m else None
 
     # Serve sia la quota sia un totale mensile plausibile, altrimenti non è il
     # comunicato che cerchiamo (o non è parsabile).
-    if quota is None or totale is None or not (TOTALE_MIN <= totale <= TOTALE_MAX):
+    if quota is None or totale is None:
         return None
 
     # Unità BEV esplicite se il comunicato le dichiara da qualche parte
@@ -180,9 +190,11 @@ def upsert_observation(new_obs: dict) -> bool:
             )
         data["observations"].append(clean)
         print(f"  ✓ aggiunto: {clean}")
+        # updated_at segna l'arrivo di un nuovo mese (badge "Aggiornato" e
+        # ordine del feed): le correzioni retroattive non lo spostano.
+        data["updated_at"] = date.today().isoformat()
 
     data["observations"].sort(key=lambda o: o["period"])
-    data["updated_at"] = date.today().isoformat()
 
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -209,6 +221,7 @@ def main() -> int:
     # permette di correggere retroattivamente i mesi già salvati quando il
     # comunicato riporta il dato ufficiale esplicito.
     trovati = 0
+    errori = 0
     periodi_visti: set[str] = set()
     for href in links[:MAX_COMUNICATI]:
         try:
@@ -227,13 +240,18 @@ def main() -> int:
               f"quota_bev={obs['market_share_pct']}% "
               f"totale_mese={obs.get('_total_month')} "
               f"bev={obs['registrations']}")
-        upsert_observation(obs)
         trovati += 1
+        try:
+            upsert_observation(obs)
+        except ValueError as e:
+            # Un mese sospetto non deve impedire di processare gli altri.
+            print(f"  ✗ {e}", file=sys.stderr)
+            errori += 1
 
     if not trovati:
         print("  ✗ Nessun comunicato mensile italiano sulle immatricolazioni trovato.")
         return 1
-    return 0
+    return 1 if errori else 0
 
 
 if __name__ == "__main__":

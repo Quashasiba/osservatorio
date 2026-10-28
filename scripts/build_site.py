@@ -12,8 +12,10 @@ sposta TEMPLATE in docs/template.html e leggilo da file.
 """
 from __future__ import annotations
 
+import html
 import json
-from datetime import date, datetime
+import re
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import plotly.graph_objects as go
@@ -24,9 +26,12 @@ import plotly.io as pio
 pio.templates.default = "none"
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO_URL = "https://github.com/Pieew/osservatorio"
+REPO_URL = "https://github.com/Quashasiba/osservatorio"
+SITE_URL = "https://quashasiba.github.io/osservatorio/"
 DATA_DIR = ROOT / "data"
 OUTPUT_HTML = ROOT / "docs" / "index.html"
+WORKFLOW_FILE = ROOT / ".github" / "workflows" / "update.yml"
+STATUS_FILE = DATA_DIR / "fetch_status.json"
 
 # Palette coerente con il template HTML sotto
 COLOR_BG = "#faf8f3"
@@ -108,6 +113,23 @@ def rangeselector(buttons: list) -> dict:
     )
 
 
+def render_chart(fig: go.Figure, div_id: str, static: bool) -> str:
+    """Div vuoto + spec JSON del grafico, disegnato da RENDER_SCRIPT a DOM pronto.
+
+    Al posto di pio.to_html, che emette uno <script> inline con
+    Plotly.newPlot eseguito subito: costringeva a caricare plotly.js in modo
+    bloccante nell'<head>, e nessun contenuto della pagina appariva finché
+    la libreria non era scaricata ed eseguita. Così invece plotly.js va in
+    `defer` e la pagina (titoli, KPI, tabelle) si vede subito.
+    """
+    spec = json.loads(fig.to_json())
+    spec["config"] = chart_config(static=static)
+    # "</" chiuderebbe il tag <script> se comparisse in un'etichetta.
+    payload = json.dumps(spec, separators=(",", ":")).replace("</", "<\\/")
+    return (f'<div id="{div_id}"></div>'
+            f'<script type="application/json" data-plotly="{div_id}">{payload}</script>')
+
+
 def chart_bev(data: dict) -> str:
     from datetime import timedelta
     # Ultimi 24 mesi: due cicli annuali completi, comparabili stagione-stagione.
@@ -154,8 +176,7 @@ def chart_bev(data: dict) -> str:
     )
     fig.update_layout(**layout)
 
-    return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-bev",
-                       config=chart_config(static=False))
+    return render_chart(fig, "chart-bev", static=False)
 
 
 def chart_payments(data: dict) -> str:
@@ -198,8 +219,7 @@ def chart_payments(data: dict) -> str:
     )
     fig.update_layout(**layout)
 
-    return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-payments",
-                       config=chart_config(static=False))
+    return render_chart(fig, "chart-payments", static=False)
 
 
 def chart_mobile(data: dict) -> str:
@@ -269,8 +289,7 @@ def chart_mobile(data: dict) -> str:
     layout["margin"] = dict(l=56, r=24, t=32, b=56)
     fig.update_layout(**layout)
 
-    return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-mobile",
-                       config=chart_config(static=True))
+    return render_chart(fig, "chart-mobile", static=True)
 
 
 def chart_desertification(data: dict) -> str:
@@ -312,8 +331,7 @@ def chart_desertification(data: dict) -> str:
         tickfont=dict(size=11), rangemode="tozero", separatethousands=True,
     )
     fig.update_layout(**layout)
-    return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-desertification",
-                       config=chart_config(static=True))
+    return render_chart(fig, "chart-desertification", static=True)
 
 
 def chart_energy_mix(data: dict) -> str:
@@ -369,8 +387,7 @@ def chart_energy_mix(data: dict) -> str:
     )
     layout["hovermode"] = "x unified"
     fig.update_layout(**layout)
-    return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-energy-mix",
-                       config=chart_config(static=True))
+    return render_chart(fig, "chart-energy-mix", static=True)
 
 
 def chart_auto_milano(data: dict) -> str:
@@ -427,8 +444,7 @@ def chart_auto_milano(data: dict) -> str:
     )
     layout["hovermode"] = "x unified"
     fig.update_layout(**layout)
-    return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id="chart-auto-milano",
-                       config=chart_config(static=True))
+    return render_chart(fig, "chart-auto-milano", static=True)
 
 
 TEMPLATE = """<!doctype html>
@@ -441,13 +457,15 @@ TEMPLATE = """<!doctype html>
   <meta property="og:title" content="Osservatorio Italia">
   <meta property="og:description" content="__N_TOPICS__ indicatori italiani aggiornati di continuo da fonti pubbliche.">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="__REPO_URL__">
+  <meta property="og:url" content="__SITE_URL__">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700&family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
-  <!-- Plotly caricato una sola volta qui: i singoli chart usano include_plotlyjs=False
-       perché l'ordine feed-style può far precedere chart_bev da altri grafici. -->
-  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+  <!-- plotly-basic (bar + scatter, gli unici trace usati: ~350KB gzip contro
+       ~1,3MB del bundle completo), in defer: non blocca la pagina. I grafici
+       vengono disegnati da RENDER_SCRIPT a fine body. Se si aggiunge un trace
+       di altro tipo (mappe, heatmap...) serve il bundle completo. -->
+  <script defer src="https://cdn.plot.ly/plotly-basic-2.35.2.min.js" charset="utf-8"></script>
   <style>
     :root {
       --bg: #faf8f3;
@@ -500,6 +518,15 @@ TEMPLATE = """<!doctype html>
     .citation .cite-body { flex: 1; color: var(--fg-soft); }
     .citation .cite-body a { color: var(--fg); text-underline-offset: 2px; }
     .citation .cite-meta { color: var(--fg-mute); margin-left: 8px; }
+
+    /* Etichette di stato: prossima estrazione, ritardo, errore di lettura */
+    .status { display: flex; flex-wrap: wrap; gap: 8px; margin: -12px 0 24px; }
+    .status .pill { display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border: 1px solid var(--rule); border-radius: 999px; background: var(--bg); color: var(--fg-soft); font-size: 12px; line-height: 1.3; }
+    .status .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--fg-mute); flex: 0 0 auto; }
+    .status .pill.late { color: #8a5a00; border-color: #e3c98f; background: #fbf4e4; }
+    .status .pill.late::before { background: #c98a0b; }
+    .status .pill.error { color: #a5301f; border-color: #e9b8b0; background: #fbeeeb; cursor: help; }
+    .status .pill.error::before { background: #c0392b; }
 
     /* Chart container — min-height per evitare CLS al render Plotly */
     .chart-wrap { background: var(--bg); padding: 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); touch-action: pan-y; min-height: 420px; }
@@ -558,13 +585,26 @@ TEMPLATE = """<!doctype html>
     </main>
 
     <footer>
-      <span>Generato automaticamente · build __BUILD_DATE__</span>
-      <span>Codice e dati: <a href="__REPO_URL__" target="_blank" rel="noopener">github.com/Pieew/osservatorio</a></span>
+      <span>Generato automaticamente da fonti pubbliche</span>
+      <span>Codice e dati: <a href="__REPO_URL__" target="_blank" rel="noopener">github.com/Quashasiba/osservatorio</a></span>
     </footer>
   </div>
+  __RENDER_SCRIPT__
 </body>
 </html>
 """
+
+
+# Disegna i grafici. Gli script `defer` (plotly.js) vengono eseguiti prima di
+# DOMContentLoaded, quindi qui Plotly è già disponibile.
+RENDER_SCRIPT = """<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll("script[data-plotly]").forEach(function (el) {
+      var spec = JSON.parse(el.textContent);
+      Plotly.newPlot(el.dataset.plotly, spec.data, spec.layout, spec.config);
+    });
+  });
+  </script>"""
 
 
 # ---------- Helpers per headline, citation, tabella dati ----------
@@ -760,6 +800,138 @@ def table_desert(d: dict) -> str:
     return table_html(["Anno", "Sportelli"], rows)
 
 
+# ---------- Prossima estrazione ed errori di lettura ----------
+#
+# Per ogni topic: quando la fonte dovrebbe pubblicare il PROSSIMO dato
+# (regole sotto, dalle date di pubblicazione osservate) e quale run del cron
+# di update.yml lo andrà a prendere. Il cron è letto dal workflow stesso, così
+# se si cambiano gli orari le etichette restano giuste. Il sito viene
+# rigenerato ogni giorno (refresh-site.yml), quindi le etichette avanzano da sole.
+
+def _cron_field(spec: str, lo: int, hi: int) -> set[int]:
+    """Un campo cron → insieme di valori. Supporta *, liste, range e */n."""
+    out: set[int] = set()
+    for part in spec.split(","):
+        rng, _, step = part.partition("/")
+        if rng == "*":
+            a, b = lo, hi
+        elif "-" in rng:
+            a, b = map(int, rng.split("-"))
+        else:
+            a = b = int(rng)
+        out.update(range(a, b + 1, int(step) if step else 1))
+    return out
+
+
+def workflow_crons() -> list[str]:
+    try:
+        return re.findall(r'cron:\s*"([^"]+)"', WORKFLOW_FILE.read_text(encoding="utf-8"))
+    except OSError:
+        return []
+
+
+def _cron_day_runs(cron: str, day: date) -> list[datetime]:
+    """Orari (UTC) in cui `cron` scatta nel giorno `day`, in ordine."""
+    mi, ho, dom, mon, dow = cron.split()
+    if day.month not in _cron_field(mon, 1, 12):
+        return []
+    dom_ok = day.day in _cron_field(dom, 1, 31)
+    dow_ok = (day.isoweekday() % 7) in {d % 7 for d in _cron_field(dow, 0, 7)}  # 0 e 7 = dom
+    # Semantica cron: se giorno-del-mese E giorno-settimana sono entrambi
+    # vincolati basta che ne combaci uno.
+    day_ok = (dom_ok or dow_ok) if (dom != "*" and dow != "*") else (dom_ok and dow_ok)
+    if not day_ok:
+        return []
+    return [datetime(day.year, day.month, day.day, h, m, tzinfo=timezone.utc)
+            for h in sorted(_cron_field(ho, 0, 23)) for m in sorted(_cron_field(mi, 0, 59))]
+
+
+def next_cron_run(after: datetime, crons: list[str]) -> datetime | None:
+    """Primo run (UTC) di uno qualsiasi dei cron a partire da `after` incluso."""
+    day = after.date()
+    for _ in range(400):
+        runs = [r for c in crons for r in _cron_day_runs(c, day) if r >= after]
+        if runs:
+            return min(runs)
+        day += timedelta(days=1)
+    return None
+
+
+def _add_months(y: int, m: int, n: int) -> tuple[int, int]:
+    m0 = y * 12 + (m - 1) + n
+    return m0 // 12, m0 % 12 + 1
+
+
+def _last_day(y: int, m: int) -> date:
+    ny, nm = _add_months(y, m, 1)
+    return date(ny, nm, 1) - timedelta(days=1)
+
+
+def expected_next(key: str, obs: list[dict]) -> tuple[str, date, int]:
+    """(etichetta prossimo periodo, data di pubblicazione attesa, giorni di
+    tolleranza prima di segnalarlo in ritardo) per il topic `key`."""
+    last = obs[-1]
+    if key in ("bev", "energy"):
+        # UNRAE pubblica il mensile il 1° del mese dopo; ENTSO-E ha il mese
+        # completo dal 1° del mese dopo.
+        y, m = map(int, last["period"].split("-"))
+        ny, nm = _add_months(y, m, 1)
+        py, pm = _add_months(ny, nm, 1)
+        return f"{MONTHS_IT[nm - 1]} {ny}", date(py, pm, 1), 7
+    if key == "mobile":
+        # AGCOM: ~4 mesi dopo la fine del trimestre (Q4 → 14/05, Q1 → 31/07).
+        y, q = last["period"].split("-Q")
+        ny, nq = (int(y) + 1, 1) if q == "4" else (int(y), int(q) + 1)
+        py, pm = _add_months(ny, nq * 3, 4)
+        return f"Q{nq} {ny}", _last_day(py, pm), 30
+    year = last["year"] + 1
+    if key == "payments":   # PoliMi: dato annuale presentato intorno al 12 marzo
+        return str(year), date(year + 1, 3, 12), 30
+    if key == "desert":     # First CISL: report annuale a fine gennaio
+        return str(year), date(year + 1, 1, 31), 30
+    if key == "auto_milano":  # ACI Autoritratto: novembre dell'anno dopo
+        return str(year), date(year + 1, 11, 1), 45
+    raise KeyError(key)
+
+
+def _fmt_date_it(d: date, today: date) -> str:
+    s = f"{d.day} {MONTHS_IT[d.month - 1]}"
+    return s if d.year == today.year else f"{s} {d.year}"
+
+
+def load_fetch_status() -> dict:
+    try:
+        return json.loads(STATUS_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def status_html(key: str, obs: list[dict], fetch_status: dict, crons: list[str],
+                now: datetime) -> str:
+    today = now.date()
+    pills = []
+
+    st = fetch_status.get(key)
+    if st and st.get("ok") is False:
+        since = date.fromisoformat(st["since"])
+        tip = html.escape(st.get("message") or "dettagli nel log del workflow", quote=True)
+        pills.append(f'<span class="pill error" title="{tip}">'
+                     f'Errore di lettura dal {_fmt_date_it(since, today)}</span>')
+
+    if obs:
+        label, expected, grace = expected_next(key, obs)
+        start = max(now, datetime(expected.year, expected.month, expected.day, tzinfo=timezone.utc))
+        run = next_cron_run(start, crons)
+        run_txt = _fmt_date_it(run.date(), today) if run else "—"
+        if today > expected + timedelta(days=grace):
+            pills.append(f'<span class="pill late">Dato {label} atteso dal '
+                         f'{_fmt_date_it(expected, today)} · nuovo tentativo {run_txt}</span>')
+        else:
+            pills.append(f'<span class="pill">Prossima estrazione: {run_txt} · dato {label}</span>')
+
+    return f'<div class="status">{"".join(pills)}</div>' if pills else ""
+
+
 def render_topic(t: dict, index: int) -> str:
     """Renderizza una singola sezione topic con headline, citation, chart, tabella opzionale."""
     table = f"\n        {t['table_html']}" if t.get("table_html") else ""
@@ -771,6 +943,7 @@ def render_topic(t: dict, index: int) -> str:
       <p class="sub">{t['subtitle']}</p>
       {t['headline_html']}
       {t['citation_html']}
+      {t['status_html']}
       <div class="chart-wrap">
         {t['chart_html']}
       </div>{table}
@@ -898,6 +1071,15 @@ def main() -> int:
             ),
         },
     ]
+    fetch_status = load_fetch_status()
+    crons = workflow_crons()
+    now = datetime.now(timezone.utc)
+    obs_by_key = {"bev": bev_data, "mobile": mob_data, "desert": desert_data,
+                  "payments": pay_data, "energy": energy_data, "auto_milano": auto_data}
+    for t in topics:
+        t["status_html"] = status_html(t["key"], obs_by_key[t["key"]].get("observations", []),
+                                       fetch_status, crons, now)
+
     # Feed-style: il più recente in cima. A parità di data, ordine stabile.
     topics.sort(key=lambda t: t["updated_at"], reverse=True)
 
@@ -907,11 +1089,16 @@ def main() -> int:
     n_topics = str(len(topics))
 
     out = (TEMPLATE
+           .replace("__RENDER_SCRIPT__", RENDER_SCRIPT)
            .replace("__TOPICS__", topics_html)
            .replace("__N_TOPICS__", n_topics)
            .replace("__REPO_URL__", REPO_URL)
-           .replace("__UPDATED_AT__", updated_at)
-           .replace("__BUILD_DATE__", date.today().isoformat()))
+           .replace("__SITE_URL__", SITE_URL)
+           .replace("__UPDATED_AT__", updated_at))
+    # Niente data di build nell'HTML: cambierebbe ogni giorno e il refresh
+    # giornaliero (refresh-site.yml) committerebbe e ridistribuirebbe il sito
+    # anche senza nessuna modifica reale. Così l'HTML cambia solo quando
+    # cambiano i dati o compare/sparisce un badge "Aggiornato".
 
     OUTPUT_HTML.write_text(out, encoding="utf-8")
     print(f"✓ Sito generato in {OUTPUT_HTML} ({len(topics)} topic)")

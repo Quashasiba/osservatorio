@@ -38,6 +38,13 @@ on:
 permissions:
   contents: write # Necessario per commit dei dati aggiornati
 
+# Stesso gruppo di refresh-site.yml: i due workflow committano entrambi su
+# main e i cron di GitHub partono con ore di ritardo, quindi possono
+# sovrapporsi. In coda invece che in parallelo, niente push rifiutati.
+concurrency:
+  group: commit-main
+  cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -55,30 +62,47 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Fetch dati BEV (UNRAE)
-        run: python scripts/fetch_bev.py
+        id: bev
+        run: python scripts/fetch_bev.py 2> >(tee "$RUNNER_TEMP/bev.err" >&2)
         continue-on-error: true # Se UNRAE fallisce, continua con gli altri
 
       - name: Fetch dati pagamenti (PoliMi)
-        run: python scripts/fetch_payments.py
+        id: payments
+        run: python scripts/fetch_payments.py 2> >(tee "$RUNNER_TEMP/payments.err" >&2)
         continue-on-error: true
 
       - name: Fetch dati operatori mobili (AGCOM)
-        run: python scripts/fetch_mobile.py
+        id: mobile
+        run: python scripts/fetch_mobile.py 2> >(tee "$RUNNER_TEMP/mobile.err" >&2)
         continue-on-error: true
 
       - name: Fetch dati desertificazione bancaria (First CISL)
-        run: python scripts/fetch_desertificazione.py
+        id: desert
+        run: python scripts/fetch_desertificazione.py 2> >(tee "$RUNNER_TEMP/desert.err" >&2)
         continue-on-error: true
 
       - name: Fetch dati mix energetico (ENTSO-E)
-        run: python scripts/fetch_energy_mix.py
+        id: energy
+        run: python scripts/fetch_energy_mix.py 2> >(tee "$RUNNER_TEMP/energy.err" >&2)
         env:
           ENTSOE_API_TOKEN: ${{ secrets.ENTSOE_API_TOKEN }}
         continue-on-error: true
 
       - name: Fetch dati parco auto Milano (ACI Autoritratto)
-        run: python scripts/fetch_auto_milano.py
+        id: auto_milano
+        run: python scripts/fetch_auto_milano.py 2> >(tee "$RUNNER_TEMP/auto_milano.err" >&2)
         continue-on-error: true
+
+      # Esito di ogni fetch in data/fetch_status.json: il sito mostra
+      # "Errore di lettura" sotto al topic finché il fetch non torna a
+      # funzionare. Lo stderr salvato sopra (tee) dà il messaggio d'errore.
+      - name: Registra esito fetch
+        if: always()
+        run: >-
+          python scripts/record_status.py
+          bev=${{ steps.bev.outcome }} payments=${{ steps.payments.outcome }}
+          mobile=${{ steps.mobile.outcome }} desert=${{ steps.desert.outcome }}
+          energy=${{ steps.energy.outcome }} auto_milano=${{ steps.auto_milano.outcome }}
 
       - name: Genera sito
         run: python scripts/build_site.py
@@ -92,8 +116,22 @@ jobs:
             echo "Nessun aggiornamento da committare."
           else
             git commit -m "chore: aggiornamento dati $(date -u +'%Y-%m-%d')"
+            git pull --rebase
             git push
           fi
+
+      # continue-on-error fa proseguire il job (le altre fonti vengono
+      # comunque aggiornate e committate) ma nasconde i fallimenti: il run
+      # risultava sempre verde anche con scraper rotti da mesi. Questo step
+      # finale fa diventare rosso il run, e GitHub manda la mail di notifica.
+      - name: Segnala fetch falliti
+        if: >-
+          steps.bev.outcome == 'failure' || steps.payments.outcome == 'failure' ||
+          steps.mobile.outcome == 'failure' || steps.desert.outcome == 'failure' ||
+          steps.energy.outcome == 'failure' || steps.auto_milano.outcome == 'failure'
+        run: |
+          echo "::error::Fetch falliti — bev=${{ steps.bev.outcome }} payments=${{ steps.payments.outcome }} mobile=${{ steps.mobile.outcome }} desert=${{ steps.desert.outcome }} energy=${{ steps.energy.outcome }} auto_milano=${{ steps.auto_milano.outcome }}"
+          exit 1
 
       # --- Notifica fallimento (opzionale) ---
       # Decommenta e configura se vuoi notifiche su Slack quando qualcosa va storto.

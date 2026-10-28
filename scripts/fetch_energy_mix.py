@@ -28,8 +28,9 @@ import json
 import os
 import sys
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 from xml.etree import ElementTree as ET
 
 import requests
@@ -66,6 +67,11 @@ PSR_TO_CATEGORY = {
 }
 CATEGORIES = ["gas", "solare", "idro", "eolico", "altre_rinnovabili", "altre_fossili"]
 
+# ENTSO-E lavora in UTC, ma il mese "italiano" va da mezzanotte a mezzanotte
+# ora di Roma: senza conversione ogni mese perdeva 1-2 ore iniziali (finite
+# nel mese prima) e ne guadagnava altrettante alla fine.
+ROME = ZoneInfo("Europe/Rome")
+
 # Namespace XML usato da ENTSO-E
 NS = {"ns": "urn:iec62325.351:tc57wg16:451-6:generationloaddocument:3:0"}
 
@@ -75,10 +81,12 @@ def fmt_period(dt: datetime) -> str:
     return dt.strftime("%Y%m%d%H%M")
 
 
-def fetch_year(year: int, token: str) -> dict[str, dict[str, float]]:
-    """Scarica un anno intero di dati. Ritorna {YYYY-MM: {categoria: MWh}}."""
-    start = datetime(year, 1, 1)
-    end = datetime(year + 1, 1, 1)
+def fetch_year(year: int, token: str) -> dict[str, dict[str, float]] | None:
+    """Scarica un anno intero di dati. Ritorna {YYYY-MM: {categoria: MWh}},
+    None se l'API non risponde (distinto da {} = anno senza dati)."""
+    # Anno solare italiano espresso in UTC (1° gennaio 00:00 Roma = 31/12 23:00 UTC)
+    start = datetime(year, 1, 1, tzinfo=ROME).astimezone(timezone.utc)
+    end = datetime(year + 1, 1, 1, tzinfo=ROME).astimezone(timezone.utc)
     params = {
         "documentType": "A75",
         "processType": "A16",
@@ -102,11 +110,11 @@ def fetch_year(year: int, token: str) -> dict[str, dict[str, float]]:
             continue
         if r.status_code != 200:
             print(f"  ERRORE: API HTTP {r.status_code}: {r.text[:300]}", file=sys.stderr)
-            return {}
+            return None
         return parse_response(r.text)
     print(f"  ERRORE: anno {year} non scaricato dopo {MAX_RETRIES} tentativi: {last_err}",
           file=sys.stderr)
-    return {}
+    return None
 
 
 def parse_response(xml_text: str) -> dict[str, dict[str, float]]:
@@ -140,7 +148,8 @@ def parse_response(xml_text: str) -> dict[str, dict[str, float]]:
             res_el = period.find("ns:resolution", NS)
             if start_el is None or res_el is None:
                 continue
-            start_dt = datetime.strptime(start_el.text, "%Y-%m-%dT%H:%MZ")
+            start_dt = (datetime.strptime(start_el.text, "%Y-%m-%dT%H:%MZ")
+                        .replace(tzinfo=timezone.utc))
             res = res_el.text  # es. "PT60M", "PT15M"
             res_minutes = int(res.replace("PT", "").replace("M", "")) if "M" in res else 60
             hours_per_point = res_minutes / 60.0
@@ -154,7 +163,7 @@ def parse_response(xml_text: str) -> dict[str, dict[str, float]]:
                 quantity = float(qty_el.text)  # MW
                 # Il punto a posizione N copre l'intervallo (N-1) → N
                 point_dt = start_dt + timedelta(minutes=(pos - 1) * res_minutes)
-                month_key = point_dt.strftime("%Y-%m")
+                month_key = point_dt.astimezone(ROME).strftime("%Y-%m")
                 # MWh = MW * ore intervallo
                 mwh = quantity * hours_per_point
                 if month_key not in out:
@@ -210,8 +219,12 @@ def main() -> int:
     # Anni da chiedere (1 chiamata per anno)
     years = list(range(start_target.year, end_target.year + 1))
     all_months: dict[str, dict[str, float]] = {}
+    api_fallita = False
     for y in years:
         data_y = fetch_year(y, token)
+        if data_y is None:
+            api_fallita = True
+            continue
         # Filtra solo i mesi nel range richiesto
         for month, vals in data_y.items():
             my_dt = datetime.strptime(month, "%Y-%m").date()
@@ -220,7 +233,7 @@ def main() -> int:
 
     if not all_months:
         print("Nessun dato nuovo dall'API.")
-        return 0
+        return 1 if api_fallita else 0
 
     # Upsert: aggiungi i mesi nuovi, aggiorna quelli esistenti se ENTSO-E li
     # ha rivisti (revisioni piccole; scostamenti grandi = dato sospetto, skip).
@@ -254,10 +267,15 @@ def main() -> int:
 
     if not aggiunti and not aggiornati:
         print("Nessuna modifica: dati già allineati.")
-        return 0
+        return 1 if api_fallita else 0
 
     data["observations"].sort(key=lambda o: o["period"])
-    data["updated_at"] = date.today().isoformat()
+    # updated_at segna l'arrivo di un mese nuovo (badge "Aggiornato" e ordine
+    # del feed). Le revisioni ENTSO-E arrivano quasi a ogni run e sono di
+    # centesimi di TWh: se spostassero updated_at il mix energetico
+    # risulterebbe "appena aggiornato" e in cima al sito per tutto il mese.
+    if aggiunti:
+        data["updated_at"] = date.today().isoformat()
 
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -266,7 +284,7 @@ def main() -> int:
         print(f"✓ Aggiunti {len(aggiunti)} mesi: {aggiunti[0]} → {aggiunti[-1]}")
     if aggiornati:
         print(f"✓ Aggiornati (revisioni ENTSO-E): {', '.join(aggiornati)}")
-    return 0
+    return 1 if api_fallita else 0
 
 
 if __name__ == "__main__":

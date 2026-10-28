@@ -1,0 +1,26 @@
+{
+  "auto_milano": {
+    "ok": true,
+    "since": "2026-10-28"
+  },
+  "bev": {
+    "ok": true,
+    "since": "2026-10-28"
+  },
+  "desert": {
+    "ok": true,
+    "since": "2026-10-28"
+  },
+  "energy": {
+    "ok": true,
+    "since": "2026-10-28"
+  },
+  "mobile": {
+    "ok": true,
+    "since": "2026-10-28"
+  },
+  "payments": {
+    "ok": true,
+    "since": "2026-10-28"
+  }
+}

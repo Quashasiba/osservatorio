@@ -257,12 +257,12 @@
     },
     {
       "period": "2026-09",
-      "gas": 9.97,
+      "gas": 9.96,
       "solare": 3.57,
       "idro": 1.87,
       "eolico": 1.25,
       "altre_rinnovabili": 0.47,
-      "altre_fossili": 1.81
+      "altre_fossili": 1.83
     },
     {
       "period": "2026-10",

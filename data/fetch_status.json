@@ -4,9 +4,8 @@
     "since": "2026-10-28"
   },
   "bev": {
-    "message": "Errore di rete sull'elenco: HTTPSConnectionPool(host='unrae.it', port=443): Max retries exceeded with url: /sala-stampa/autovetture (Caused by SSLError(SSLCertVerificationError(1, \"[SSL: CERTIFICATE_V",
-    "ok": false,
-    "since": "2026-11-01"
+    "ok": true,
+    "since": "2026-11-08"
   },
   "desert": {
     "ok": true,

@@ -6,7 +6,7 @@ dell'anno precedente. La data non è fissa: il 2023 a giugno 2024, il 2024 a
 novembre 2025, il 2025 a giugno 2026.
 
 Strategia:
-  1. Scarica la pagina indice https://www.aci.it/.../open-data.html
+  1. Scarica la pagina indice https://aci.gov.it/.../open-data/
   2. Trova il link all'archivio "Autoritratto-YYYY-OD" più recente (.zip o
      .rar: il 2025 è uscito come RAR e lo script, che cercava solo .zip, non
      l'aveva visto)
@@ -43,7 +43,7 @@ import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_FILE = ROOT / "data" / "auto_milano.json"
-INDEX_URL = "https://www.aci.it/laci/studi-e-ricerche/dati-e-statistiche/open-data.html"
+INDEX_URL = "https://aci.gov.it/attivita-e-progetti/studi-e-ricerche/open-data/"
 USER_AGENT = "Mozilla/5.0 (compatible; OsservatorioBot/1.0; +github-actions)"
 TIMEOUT = 120
 

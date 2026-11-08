@@ -1014,7 +1014,7 @@ def main() -> int:
             "chart_html": chart_bev(bev_data),
             "headline_html": headline_bev(bev_data),
             "citation_html": citation_html(
-                '<a href="https://www.unrae.it/notizie" target="_blank" rel="noopener">UNRAE</a>',
+                '<a href="https://www.unrae.it/sala-stampa/autovetture" target="_blank" rel="noopener">UNRAE</a>',
                 "aggiornamento mensile", last_period_of(bev_data["observations"]),
             ),
             "table_html": table_bev(bev_data),
@@ -1087,7 +1087,7 @@ def main() -> int:
             "chart_html": chart_auto_milano(auto_data),
             "headline_html": headline_auto_milano(auto_data),
             "citation_html": citation_html(
-                '<a href="https://www.aci.it/laci/studi-e-ricerche/dati-e-statistiche/open-data.html" target="_blank" rel="noopener">ACI Autoritratto</a>',
+                '<a href="https://aci.gov.it/attivita-e-progetti/studi-e-ricerche/open-data/" target="_blank" rel="noopener">ACI Autoritratto</a>',
                 "aggiornamento annuale", str(auto_data["observations"][-1]["year"]),
             ),
         },

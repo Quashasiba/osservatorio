@@ -182,7 +182,13 @@ def mwh_to_twh(d: dict[str, float]) -> dict[str, float]:
 def main() -> int:
     token = os.environ.get("ENTSOE_API_TOKEN")
     if not token:
-        print("ENTSOE_API_TOKEN non impostato. Skip (probabilmente API key non ancora attiva).")
+        # In CI il token deve esserci: se il secret sparisce o scade, meglio un
+        # errore visibile che un "successo" con dati fermi.
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            print("  ✗ ENTSOE_API_TOKEN mancante in CI (secret rimosso o scaduto?).",
+                  file=sys.stderr)
+            return 1
+        print("ENTSOE_API_TOKEN non impostato. Skip (esecuzione locale).")
         return 0
 
     with open(DATA_FILE, "r", encoding="utf-8") as f:

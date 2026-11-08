@@ -40,9 +40,9 @@ from bs4 import BeautifulSoup
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_FILE = ROOT / "data" / "bev_italia.json"
-BASE_URL = "https://unrae.it"
+BASE_URL = "https://www.unrae.it"
 # Pagina-elenco NON filtrata per tag (vedi docstring: i tag UNRAE sono inaffidabili).
-LIST_URL = "https://unrae.it/sala-stampa/autovetture"
+LIST_URL = "https://www.unrae.it/sala-stampa/autovetture"
 USER_AGENT = "Mozilla/5.0 (compatible; OsservatorioBot/1.0; +github-actions)"
 TIMEOUT = 30
 # Quanti comunicati al massimo aprire dall'elenco (dal più recente).
@@ -156,12 +156,25 @@ def valuta_comunicato(html: str) -> dict | None:
     # Si prende il PRIMO numero in range plausibile, non il primo in assoluto:
     # da settembre 2026 il comunicato apre con il cumulato ("Nei primi 9 mesi
     # immatricolate 1.268.964 unità") e il mensile arriva solo dopo.
+    # Se il titolo riporta il totale tra parentesi ("ottobre a +4,8% (131.921)")
+    # è la fonte più affidabile: usalo.
     totale = None
-    for tot_m in RE_TOTALE.finditer(text):
-        n = int(tot_m.group(1).replace(".", ""))
+    titolo_m = re.search(r"\((\d{1,3}(?:\.\d{3})+)\)", text[:pm.start()])
+    if titolo_m:
+        n = int(titolo_m.group(1).replace(".", ""))
         if TOTALE_MIN <= n <= TOTALE_MAX:
             totale = n
+    for tot_m in RE_TOTALE.finditer(text):
+        if totale is not None:
             break
+        n = int(tot_m.group(1).replace(".", ""))
+        # Esclude i divari ("gap di oltre 224.000 unità rispetto al 2019",
+        # "mancano all'appello oltre 224.000 unità"), ottobre 2026.
+        prima = text[max(0, tot_m.start() - 25):tot_m.start()].lower()
+        if re.search(r"gap|divario|oltre|appello|mancano", prima):
+            continue
+        if TOTALE_MIN <= n <= TOTALE_MAX:
+            totale = n
 
     # Serve sia la quota sia un totale mensile plausibile, altrimenti non è il
     # comunicato che cerchiamo (o non è parsabile).

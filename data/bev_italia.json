@@ -1,7 +1,7 @@
 {
   "source": "UNRAE",
   "note": "Dati da novembre 2024 ufficiali UNRAE, verificati uno per uno sui comunicati mensili il 2026-10-28 (unità dichiarate dal comunicato se presenti, altrimenti totale del mese × quota BEV). Dati 2018 - ottobre 2024 sono stime mensili ricostruite da totali annuali noti applicando un pattern di stagionalità tipico del mercato auto italiano (agosto basso, dicembre alto), marcate 'estimated'.",
-  "updated_at": "2026-10-28",
+  "updated_at": "2026-11-08",
   "observations": [
     {
       "period": "2018-01",
@@ -609,6 +609,11 @@
       "period": "2026-09",
       "registrations": 10591,
       "market_share_pct": 7.6
+    },
+    {
+      "period": "2026-10",
+      "registrations": 8047,
+      "market_share_pct": 6.1
     }
   ]
 }

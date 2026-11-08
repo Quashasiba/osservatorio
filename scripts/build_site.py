@@ -1014,7 +1014,7 @@ def main() -> int:
             "chart_html": chart_bev(bev_data),
             "headline_html": headline_bev(bev_data),
             "citation_html": citation_html(
-                '<a href="https://unrae.it/notizie" target="_blank" rel="noopener">UNRAE</a>',
+                '<a href="https://www.unrae.it/notizie" target="_blank" rel="noopener">UNRAE</a>',
                 "aggiornamento mensile", last_period_of(bev_data["observations"]),
             ),
             "table_html": table_bev(bev_data),

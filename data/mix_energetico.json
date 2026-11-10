@@ -262,7 +262,7 @@
       "idro": 1.87,
       "eolico": 1.25,
       "altre_rinnovabili": 0.47,
-      "altre_fossili": 1.83
+      "altre_fossili": 1.84
     },
     {
       "period": "2026-10",
@@ -271,7 +271,7 @@
       "idro": 1.5,
       "eolico": 1.88,
       "altre_rinnovabili": 0.54,
-      "altre_fossili": 1.39
+      "altre_fossili": 1.38
     }
   ]
 }
